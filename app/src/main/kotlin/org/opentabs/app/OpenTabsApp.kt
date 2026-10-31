@@ -15,9 +15,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
@@ -34,12 +39,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.opentabs.core.Availability
 
 @Composable
-fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
+fun OpenTabsApp(vm: OpenTabsViewModel = viewModel(),
+    tunerFactory: ((TunerMemory, () -> Boolean, () -> Unit) -> TunerController)? = null) = OpenTabsTheme {
     val library by vm.library.collectAsStateWithLifecycle()
     val screen by vm.screen.collectAsStateWithLifecycle()
     val document by vm.document.collectAsStateWithLifecycle()
     val guitarProImport by vm.guitarProImport.collectAsStateWithLifecycle()
     val snackbars = remember { SnackbarHostState() }
+    val tabSavedState = rememberSaveableStateHolder()
     val context = LocalContext.current
     var microphoneDialog by remember { mutableStateOf(false) }
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -74,7 +81,8 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
     }
     val view = LocalView.current
     val keepAwake = library.settings.keepAwake &&
-        (screen.webTab != null || (screen.destination == Destination.NOW_PLAYING && document.tab != null))
+        (screen.webTab != null || screen.destination == Destination.TUNER ||
+            (screen.destination == Destination.NOW_PLAYING && document.tab != null))
     DisposableEffect(view, keepAwake) {
         val previous = view.keepScreenOn
         view.keepScreenOn = keepAwake
@@ -90,7 +98,8 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
         onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
     BackHandler(enabled = screen.fullScreen && screen.webTab == null) { vm.fullScreen(false) }
-    BackHandler(enabled = screen.webTab == null && !screen.fullScreen && screen.destination != Destination.NOW_PLAYING) {
+    BackHandler(enabled = screen.webTab == null && !screen.fullScreen && screen.destination != Destination.NOW_PLAYING &&
+        screen.destination != Destination.TUNER) {
         vm.navigate(Destination.NOW_PLAYING)
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -167,11 +176,14 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
                                 library.settings.keepAwake, vm::closeBrowser, vm::browse, vm::fullScreen,
                                 { enabled -> vm.settings { it.copy(keepAwake = enabled) } }, vm::notify)
                             else when (screen.destination) {
-                                Destination.NOW_PLAYING -> TabViewer(library, screen, document, vm)
+                                Destination.NOW_PLAYING -> tabSavedState.SaveableStateProvider("native-tab") {
+                                    TabViewer(library, screen, document, vm)
+                                }
                                 Destination.SEARCH -> SearchScreen(screen, vm::setQuery, vm::setArtistQuery,
                                     vm::selectTabSource, vm::searchTabs, { vm.navigate(Destination.LIBRARY) })
                                 Destination.LIBRARY, Destination.PRACTICE -> LibraryScreen(library, screen, vm)
                                 Destination.SETTINGS -> SettingsScreen(library.settings, vm)
+                                Destination.TUNER -> TunerScreen(vm.tunerMemory, vm::closeTuner, vm::notify, tunerFactory)
                             }
                         }
                     }
@@ -214,7 +226,18 @@ private fun Destination.icon(): ImageVector = when (this) {
     Destination.LIBRARY -> Icons.Default.Menu
     Destination.PRACTICE -> Icons.Default.Star
     Destination.SETTINGS -> Icons.Default.Settings
+    Destination.TUNER -> TuningFork
 }
+
+private val TuningFork = ImageVector.Builder("TuningFork", 24.dp, 24.dp, 24f, 24f).apply {
+    path(stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round) {
+        moveTo(7f, 3f); lineTo(7f, 9f)
+        curveTo(7f, 12f, 9f, 14f, 12f, 14f)
+        curveTo(15f, 14f, 17f, 12f, 17f, 9f)
+        lineTo(17f, 3f)
+        moveTo(12f, 14f); lineTo(12f, 21f)
+    }
+}.build()
 
 @Composable
 private fun MicrophoneIcon() {

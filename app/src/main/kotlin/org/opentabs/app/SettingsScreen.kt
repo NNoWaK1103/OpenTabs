@@ -41,7 +41,7 @@ fun SettingsScreen(settings: ViewerSettings, vm: OpenTabsViewModel) {
         Text("‘Find tabs for [title] by [artist]’\n‘Open my favorites’\n‘Show my practice list’\n‘Start scrolling’ / ‘Stop scrolling’\n‘Increase tab size’ / ‘Decrease tab size’",
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         HorizontalDivider()
-        Text("OpenTabs 0.3.1 · Guitar tab search & native viewing.", style = MaterialTheme.typography.labelLarge)
+        Text("OpenTabs 0.3.2 · Guitar tabs & tuner.", style = MaterialTheme.typography.labelLarge)
         Text("Text .txt/.tab: up to 512 KiB, 6,000 lines, 1,000 columns. ZIP-based GP7 .gp: bounded, six-string position previews with authored frets. GP3–GP5, GPX, MusicXML, audio playback, and synchronization are not implemented. The play control starts scrolling only.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

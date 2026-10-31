@@ -18,6 +18,10 @@ The Android ViewModel separates screen state, persistent library state, transien
 
 `SearchScreen` collects song title, artist, and a `WebTabSource`. Submitting delegates to the existing `OpenTabsViewModel.browse` / `WebTabRequest` path. Only Songsterr and Ultimate Guitar public search pages are connected. Their original result lists and supported tab pages render through the existing `WebTabController` / `WebTabScreen`; secure URLs, lifecycle, performance controls, and external fallback are retained. There is no background metadata lookup, merged metadata result list, or additional online catalog. My Tabs retains native local search. Existing serialized provenance and imported GP7 track tags are preserved separately from discovery code. See [the history audit](SEARCH_SIMPLIFICATION.md) and [WebView details](WEB_BROWSER.md).
 
+## Tuner
+
+`TunerScreen` / `TunerController` form a separate WebView and microphone boundary for guitar-tuner.org. `TunerMicrophoneGate` checks the exact origin, visible page, and Android runtime permission, grants audio only, and discards canceled or stale requests. Backgrounding/disposal destroys the tuner view to stop capture. Navigation suspends the previous tab request, restores its existing URL/history memory on return, and retains native saveable scroll state. Tab browser capture policies remain unchanged. See [TUNER.md](TUNER.md).
+
 ## Spotify
 
 `NowPlayingProvider` exposes availability, connect/disconnect operations, and a `Flow<TrackInfo?>`. The shipped `UnconfiguredSpotifyProvider` emits no track and returns an explanatory unavailable state. `LocalSearch.matching` implements normalized title-and-artist matching and is tested independently.

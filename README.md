@@ -1,4 +1,4 @@
-# OpenTabs 0.3.1
+# OpenTabs 0.3.2
 
 A native Kotlin / Jetpack Compose guitar companion with direct **Songsterr** and **Ultimate Guitar** search, an embedded Android WebView, and an offline six-line tablature viewer. This update reuses the v0.3 browser implementation from Git history and removes the metadata-discovery workflow.
 
@@ -12,6 +12,10 @@ A native Kotlin / Jetpack Compose guitar companion with direct **Songsterr** and
 These are the only online discovery sources. Typing in the form does not start network searches. There are no metadata-only song cards, additional online catalogs, private API calls, or scraping. Provider results remain the website's own UI with a persistent source label and current HTTPS address.
 
 If a site blocks embedded viewing, a page fails, or WebView is unavailable, choose **Open in browser**. Website ads, cookie consent, authentication, subscriptions, and access restrictions remain controlled by the provider. No content or access controls are modified. See [browser lifecycle, security, and limitations](docs/WEB_BROWSER.md) and [history inspection and reuse](docs/SEARCH_SIMPLIFICATION.md).
+
+## Guitar tuner
+
+Select **Tuner** in the sidebar or bottom navigation to open [guitar-tuner.org](https://guitar-tuner.org/) inside OpenTabs. Choose a guitar tuner on the website, tap its microphone switch, and allow Android microphone access when prompted. Only the trusted tuner origin can receive microphone permission; other sites and camera requests are denied. Leaving Tuner or backgrounding destroys its WebView to stop capture. **Back to tab** restores the previous native or online tab where possible. See [tuner permissions, lifecycle, and validation](docs/TUNER.md).
 
 ## Saved tabs and practice
 
@@ -35,7 +39,7 @@ The existing Spotify and music-identification integration boundaries are unchang
 2. Download **OpenTabs-debug-apk** under Artifacts (GitHub sign-in required).
 3. Unzip it and copy `app-debug.apk` to your tablet. Open it in Files and allow that file manager to install apps when Android prompts you.
 
-Version 0.3.1 uses version code 4 and the existing debug signing key, so it can update the prior app while retaining the library. `gradle/debug.keystore` is a deliberately public debug-only key with the conventional `android` password; never use it for production releases. Workflow APK artifacts are retained for 30 days.
+Version 0.3.2 uses version code 5 and the existing debug signing key, so it can update the prior app while retaining the library. `gradle/debug.keystore` is a deliberately public debug-only key with the conventional `android` password; never use it for production releases. Workflow APK artifacts are retained for 30 days.
 
 Android 8.0+ (API 26) and an enabled, updated System WebView are required. Physical Meswao B3 Basic performance and website compatibility have not been verified. Third-party scripts may use more resources than native tabs; use the external browser when necessary.
 
