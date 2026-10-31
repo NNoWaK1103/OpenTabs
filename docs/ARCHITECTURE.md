@@ -1,5 +1,7 @@
 # Architecture and integration boundaries
 
+Version 0.3 adds an optional Compose `AndroidView` browser screen for ordinary Songsterr and Ultimate Guitar website navigation. `WebTabRequest` / `WebTabUrls` define search routes and top-level navigation policy; the screen-owned `WebTabController` manages one WebView and its lifecycle. A bounded `WebTabMemory` retains navigation data, never a View or Activity. Existing native providers, repository, decoder, Spotify boundary, and voice commands are preserved. See [WEB_BROWSER.md](WEB_BROWSER.md).
+
 Version 0.2 adds the independently implemented `TabSearchProvider` search/retrieval model, concurrent coordinator, HTTP/caching layer, MusicBrainz metadata adapter, TabForge CC0 source, and streaming GP7 position-preview decoder. See [provider research and implementation limits](PROVIDERS.md) for the current rights matrix and native format support. Spotify and music-recognition boundaries below remain optional and unconfigured.
 
 ## Offline application

@@ -1,5 +1,7 @@
 # Online search and content rights — reviewed 2026-10-31
 
+**Version 0.3 update:** Songsterr and Ultimate Guitar now have ordinary embedded-website browsing, including their own delivered search/results UI. They still do not have native search/extraction/download adapters. The native provider and rights matrix below remains applicable to API-based retrieval and offline saving. See [WEB_BROWSER.md](WEB_BROWSER.md) for the separate browser path and website-controlled access restrictions.
+
 OpenTabs 0.2 does not promise tablature for every song. It combines a private offline library, worldwide song discovery, and a deliberately small authorized native-content catalog. A metadata match is not evidence that an arrangement exists or that OpenTabs may download it.
 
 ## Implemented providers

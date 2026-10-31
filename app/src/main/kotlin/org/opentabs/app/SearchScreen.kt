@@ -62,6 +62,14 @@ fun SearchScreen(search: SearchSnapshot, screen: ScreenState, vm: OpenTabsViewMo
                     onClick = { vm.searchFilter(if (screen.searchFilter == tag) null else tag) }, label = { Text(tag.label) })
             }
         }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Website results", style = MaterialTheme.typography.labelMedium)
+            WebTabSource.entries.forEach { source ->
+                OutlinedButton(onClick = { vm.browse(source) },
+                    modifier = Modifier.semantics { contentDescription = "Search ${source.label} website" }) { Text(source.label) }
+            }
+        }
         val problems = search.reports.filter { it.status in setOf(ProviderStatus.FAILED, ProviderStatus.TIMED_OUT) }
         if (problems.isNotEmpty()) Text(problems.joinToString("\n") { "${it.name}: ${it.message}" },
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
@@ -106,6 +114,12 @@ fun SearchScreen(search: SearchSnapshot, screen: ScreenState, vm: OpenTabsViewMo
                 Text("${result.rights.license}\n${result.rights.attribution}", style = MaterialTheme.typography.bodySmall)
                 Text(result.sourceUrl, style = MaterialTheme.typography.bodySmall)
                 if (result.native == NativeContent.AVAILABLE) Text("Save & open stores an attributed offline text preview in My Tabs.")
+                if (result.native !in setOf(NativeContent.AVAILABLE, NativeContent.LOCAL)) {
+                    Text("Browse this song on a tab website", style = MaterialTheme.typography.labelLarge)
+                    WebTabSource.entries.forEach { source ->
+                        OutlinedButton(onClick = { selected = null; vm.browseResult(result, source) }) { Text("Browse ${source.label}") }
+                    }
+                }
             }
         }, confirmButton = {
             if (result.native == NativeContent.AVAILABLE && result.rights.save) TextButton(onClick = {
@@ -118,7 +132,7 @@ fun SearchScreen(search: SearchSnapshot, screen: ScreenState, vm: OpenTabsViewMo
             Text("My Tabs: your saved offline library.")
             Text("TabForge CC0: a small original guitar demo catalog with authored string/fret positions. Six-string arrangements can be saved and displayed natively.")
             Text("MusicBrainz: worldwide title and artist discovery through its documented API. Results contain song metadata, never tablature.")
-            Text("Songsterr and Ultimate Guitar are not connected: a documented, authorized third-party tab API has not been established. No protected pages or private APIs are scraped.")
+            Text("Songsterr and Ultimate Guitar: browse each website’s search results and tabs inside OpenTabs. Website content, ads, sign-in, and subscriptions remain controlled by the source. External browser fallback is always available. No tab extraction or private API is used.")
             Text("Online search sends the title and artist to MusicBrainz and retrieves TabForge’s public CC0 score from GitHub. No accounts or background polling.", style = MaterialTheme.typography.bodySmall)
         } }, confirmButton = { TextButton(onClick = { sourceInfo = false }) { Text("Close") } })
 }

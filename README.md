@@ -1,6 +1,12 @@
-# OpenTabs 0.2
+# OpenTabs 0.3
 
-A native Kotlin / Jetpack Compose guitar tablature companion. Built for landscape tablet practice, with a compact portrait layout. No WebView, advertising, accounts, or paid service is needed for the core app. Version 0.2 adds unified local/online search and authorized native guitar-position previews while preserving existing libraries and viewer settings.
+A Kotlin / Jetpack Compose guitar tablature companion with native tab viewing and optional embedded website browsing. Built for landscape tablet practice, with a compact portrait layout. Version 0.3 adds Songsterr and Ultimate Guitar browsing while preserving existing libraries, native search, authorized guitar-position previews, settings, voice commands, and optional integration boundaries. The native features need no account or paid service; third-party websites control their own ads, authentication, and subscriptions.
+
+## Songsterr and Ultimate Guitar
+
+In **Search**, enter an artist and song title, then choose a source under **Website results**. The provider's original search page opens inside OpenTabs; tap a website result to view its tab. Source labels and the current HTTPS address remain visible. Use Back/Forward, Refresh/Stop, Zoom, Full screen, and Screen awake in the compact performance toolbar. **Native tabs** returns to the existing native search and viewer.
+
+If a site blocks embedded browsing or a page cannot load, choose **Open in browser**. No paywalls, ads, sign-in screens, or access controls are bypassed. Normal website content is preserved, and the WebView uses its genuine User-Agent. Android System WebView must be enabled; updating it can improve compatibility. See [browser behavior, security, lifecycle, and limitations](docs/WEB_BROWSER.md).
 
 ## Online search
 
@@ -8,7 +14,7 @@ Search by **Title or keywords** and optionally **Artist**. Results combine saved
 
 **Try `Ashen Meridian`** to retrieve the author's CC0 demo. Select **Details → Save & open** on Lead Gtr, Lead Harmony, or Clean Gtr to display the authored positions in the existing native viewer and save an attributed offline copy. The preview shows written measures, not interpreted repeats, techniques, rhythmic spacing, or playback. Different string counts are clearly marked unsupported.
 
-**MusicBrainz results are metadata only: they do not contain tablature.** Online discovery is worldwide, but native online tab coverage is currently one CC0 demo composition with multiple arrangements. OpenTabs does not promise a tab for every commercial song. Songsterr and Ultimate Guitar are not connected; no protected pages or private APIs are scraped.
+**MusicBrainz results are metadata only: they do not contain tablature.** Native online tab coverage is currently one CC0 demo composition with multiple arrangements. For commercial-song tabs, use the embedded Songsterr or Ultimate Guitar website, subject to the provider's availability and access rules. No protected pages or private APIs are scraped, and website tabs are not copied into the native offline library.
 
 See [provider research, licensing, cache permissions, and native format limits](docs/PROVIDERS.md).
 
@@ -98,11 +104,11 @@ The app stores a small JSON metadata index and separate UTF-8 tab files in app-p
 
 Data remains on this device. Android cloud backup and device transfer are disabled. Uninstalling or clearing app data removes imported copies, favorites, and settings; retain your original files. Auto-scroll's running state and full-screen mode are intentionally session-only; font, line spacing, speed, and keep-awake preferences persist.
 
-## Deliberately unavailable in 0.2
+## Deliberately unavailable in 0.3
 
 - **Spotify:** an explicit unconfigured provider. No account connection or live track monitoring is claimed.
 - **Music identification:** an explicit unavailable provider. No Shazam recognition or fabricated recognition results.
-- **Songsterr / Ultimate Guitar native tabs:** require documented authorized access; no scraping or invented endpoints. MusicBrainz song discovery supplies no tabs.
+- **Songsterr / Ultimate Guitar native extraction and offline saving:** not implemented. They are available as embedded websites and external-browser fallback; the original website controls its content. MusicBrainz song discovery supplies no tabs.
 - **Full Guitar Pro engraving / playback, GP3–GP5 / GPX, MusicXML, tab synthesis, playback synchronization, and automated transcription:** not implemented. The supported GP7 path is a limited native authored-position preview.
 
 The bundled exercises are original OpenTabs practice material; no commercial song transcription is bundled. A song title used in a voice parser test does not include its tablature or audio.

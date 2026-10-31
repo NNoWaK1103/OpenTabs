@@ -94,12 +94,19 @@ jobs:
           profile: pixel_c
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace
+          script: |
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace
+            mkdir -p app/build/reports/webview
+            adb shell run-as org.opentabs.app ls cache
+            adb shell run-as org.opentabs.app cat cache/webview-songsterr.png > app/build/reports/webview/songsterr.png || true
+            adb shell run-as org.opentabs.app cat cache/webview-ultimate_guitar.png > app/build/reports/webview/ultimate-guitar.png || true
       - name: Upload device test reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: OpenTabs-device-tests-api-${{ matrix.api }}
-          path: app/build/reports/androidTests/
+          path: |
+            app/build/reports/androidTests/
+            app/build/reports/webview/
           if-no-files-found: warn
           retention-days: 14

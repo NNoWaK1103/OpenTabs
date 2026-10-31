@@ -74,7 +74,8 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
         onDispose { lifecycle.lifecycle.removeObserver(observer) }
     }
     val view = LocalView.current
-    val keepAwake = library.settings.keepAwake && screen.destination == Destination.NOW_PLAYING && document.tab != null
+    val keepAwake = library.settings.keepAwake &&
+        (screen.webTab != null || (screen.destination == Destination.NOW_PLAYING && document.tab != null))
     DisposableEffect(view, keepAwake) {
         val previous = view.keepScreenOn
         view.keepScreenOn = keepAwake
@@ -89,8 +90,8 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
         }
         onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
-    BackHandler(enabled = screen.fullScreen) { vm.fullScreen(false) }
-    BackHandler(enabled = !screen.fullScreen && screen.destination != Destination.NOW_PLAYING) {
+    BackHandler(enabled = screen.fullScreen && screen.webTab == null) { vm.fullScreen(false) }
+    BackHandler(enabled = screen.webTab == null && !screen.fullScreen && screen.destination != Destination.NOW_PLAYING) {
         vm.navigate(Destination.NOW_PLAYING)
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -162,7 +163,11 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                         }
                         Box(Modifier.weight(1f).fillMaxWidth()) {
-                            when (screen.destination) {
+                            val webRequest = screen.webTab
+                            if (webRequest != null) WebTabScreen(webRequest, vm.webTabMemory, screen.fullScreen,
+                                library.settings.keepAwake, vm::closeBrowser, vm::browse, vm::fullScreen,
+                                { enabled -> vm.settings { it.copy(keepAwake = enabled) } }, vm::notify)
+                            else when (screen.destination) {
                                 Destination.NOW_PLAYING -> TabViewer(library, screen, document, vm)
                                 Destination.SEARCH -> SearchScreen(search, screen, vm)
                                 Destination.LIBRARY, Destination.PRACTICE -> LibraryScreen(library, screen, vm)

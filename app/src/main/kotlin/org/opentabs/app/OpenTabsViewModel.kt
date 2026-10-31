@@ -40,6 +40,7 @@ data class ScreenState(
     val searchFilter: ArrangementTag? = null,
     val nativeOnly: Boolean = false,
     val downloading: String? = null,
+    val webTab: WebTabRequest? = null,
 )
 
 data class DocumentState(val songId: String? = null, val tab: TabDocument? = null, val error: String? = null)
@@ -59,6 +60,8 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     private val http = providerHttp(File(application.cacheDir, "licensed-search"))
     private val searchEngine = UnifiedTabSearch(listOf(LocalTabSearchProvider(repository), MusicBrainzProvider(http), TabForgeProvider(http)))
     private var searchJob: Job? = null
+    val webTabMemory = WebTabMemory()
+    private var webRevision = 0L
     private val notifications = Channel<String>(Channel.BUFFERED)
     val messages = notifications.receiveAsFlow()
     val spotify = UnconfiguredSpotifyProvider()
@@ -104,12 +107,24 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
 
     fun notify(message: String) { notifications.trySend(message) }
     fun navigate(destination: Destination) {
-        mutableScreen.value = screen.value.copy(destination = destination, scrolling = false, fullScreen = false)
+        mutableScreen.value = screen.value.copy(destination = destination, scrolling = false, fullScreen = false, webTab = null)
         if (destination == Destination.SEARCH) scheduleSearch(false) else cancelSearch()
     }
     fun setQuery(query: String) {
         mutableScreen.value = screen.value.copy(query = query.take(160), searchFilter = null)
         if (screen.value.destination == Destination.SEARCH) scheduleSearch()
+    }
+    fun browse(source: WebTabSource) {
+        cancelSearch()
+        val previous = screen.value.webTab
+        mutableScreen.value = screen.value.copy(destination = Destination.SEARCH, scrolling = false,
+            webTab = WebTabRequest(source, previous?.title ?: screen.value.query,
+                previous?.artist ?: screen.value.artistQuery, ++webRevision))
+    }
+    fun closeBrowser() { navigate(Destination.SEARCH) }
+    fun browseResult(result: TabSearchResult, source: WebTabSource) {
+        mutableScreen.value = screen.value.copy(query = result.title, artistQuery = result.artist)
+        browse(source)
     }
     fun setArtistQuery(artist: String) {
         mutableScreen.value = screen.value.copy(artistQuery = artist.take(160), searchFilter = null)
