@@ -51,7 +51,7 @@ class AppSmokeTest {
             compose.onAllNodesWithContentDescription("Six-string guitar tablature. Swipe vertically or horizontally to scroll.").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Source & license").assertIsDisplayed()
-        compose.onNodeWithText("Ashen Meridian").assertIsDisplayed()
+        compose.onAllNodesWithText("Ashen Meridian").onFirst().assertIsDisplayed()
         compose.onNodeWithText("Auto-scroll").assertIsDisplayed()
     }
 }
