@@ -6,4 +6,8 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "OpenTabs"
-include(":core", ":app")
+include(":core")
+// Keep iOS builds independent of an Android SDK installation.
+if (!providers.gradleProperty("iosOnly").orElse("false").get().toBoolean()) {
+    include(":app")
+}

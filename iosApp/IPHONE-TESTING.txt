@@ -1,0 +1,40 @@
+OpenTabs — install the preview on your own iPhone
+
+This package contains the SwiftUI app source, a generated Xcode project, and
+its prebuilt ARM64 Kotlin framework. You do not need Java, Gradle, XcodeGen,
+Homebrew, or a paid Apple Developer membership to use this testing package.
+An internet connection is needed for Apple's free development signing setup.
+
+1. Extract OpenTabs-iPhone-Test.zip and open the extracted folder.
+2. Double-click OpenTabs.xcodeproj. If Xcode asks whether you trust this
+   downloaded project, confirm only if you obtained it from OpenTabs CI.
+3. In Xcode > Settings > Accounts (or Apple Accounts), add your Apple account.
+4. Click the blue OpenTabs project in the left sidebar, then choose the
+   OpenTabs app under TARGETS. Open Signing & Capabilities.
+5. Leave Automatically manage signing checked and choose your Personal Team.
+   Change Bundle Identifier to something unique, for example:
+   com.timcarey.opentabs.preview
+   If Apple says that identifier is unavailable, choose another unique value.
+6. Connect your iPhone by cable, unlock it, and accept Trust This Computer.
+7. Select the OpenTabs scheme and your actual iPhone in Xcode's top toolbar.
+   This package contains a device framework only; do not choose a simulator.
+8. If asked, enable Settings > Privacy & Security > Developer Mode on your
+   iPhone, restart, and confirm. The setting may appear after pairing in Xcode.
+9. Press the triangular Run button in Xcode (or Command-R).
+10. If iOS asks you to trust your developer identity, follow its prompt under
+    Settings > General > VPN & Device Management. Then run again from Xcode.
+
+Once installed, you can disconnect your phone and open the app normally.
+With a free Personal Team, signing expires after seven days; repeat Run in
+Xcode to refresh it. Updating the app also requires another Run from Xcode.
+
+Try opening First steps, scrolling in both directions, and the Larger/Smaller
+buttons. This preview has three original exercises. Saved libraries, file
+import, online search, and website browsing are not yet implemented on iOS.
+
+This is a device-testing project, not an already-signed installer or App Store
+release. CI validates it with Xcode 26.0. A newer Xcode still needs to build
+and sign the Swift app; the included Kotlin framework does not rebuild locally.
+Newer-Xcode physical-device testing is not established by the CI check.
+
+SOURCE-REVISION.txt identifies the exact source commit used for the package.
