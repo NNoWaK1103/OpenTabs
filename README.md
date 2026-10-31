@@ -86,7 +86,7 @@ For a local build, install JDK 17 and the Android command-line SDK. Set `JAVA_HO
 ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-On Windows use `gradlew.bat`. No separately installed Gradle is required. The pinned build stack is AGP 8.9.2, Gradle 8.11.1, Kotlin / Compose compiler 2.1.20, Compose BOM 2025.04.01, and Material 3. These are deliberately compatible stable versions, rather than floating dependency versions.
+On Windows use `gradlew.bat`. No separately installed Gradle is required. The pinned build stack is AGP 8.9.2, Gradle 8.11.1, Kotlin / Compose compiler 2.2.21, Compose BOM 2025.04.01, and Material 3. These are deliberately compatible stable versions, rather than floating dependency versions.
 
 To run the included Compose smoke test on a connected Android device or running emulator:
 
@@ -98,7 +98,7 @@ Tablet smoke tests search offline exercises and save/open a licensed arrangement
 
 ## Architecture and data
 
-`core/` is a pure Kotlin JVM module containing domain models, the tested repository, search, decoders, voice parsing, original exercises, and provider interfaces. `app/` contains the Android lifecycle ViewModel, SAF import, delegated speech activity, and native Compose screens. See [architecture and integration setup](docs/ARCHITECTURE.md).
+`core/` is a Kotlin Multiplatform module with a JVM implementation containing domain models, the tested repository, search, decoders, voice parsing, original exercises, and provider interfaces. `app/` contains the Android lifecycle ViewModel, SAF import, delegated speech activity, and native Compose screens. See [architecture and integration setup](docs/ARCHITECTURE.md).
 
 The app stores a small JSON metadata index and separate UTF-8 tab files in app-private storage. Writes use a serialized coroutine mutex, a synced temporary file, and atomic replacement. I/O runs on `Dispatchers.IO`. A corrupt index is reported and preserved rather than overwritten. Tab bodies are loaded only for the selected tab; a lazy list composes visible lines. Online search uses the internet permission only for user-driven requests to the documented metadata API and the reviewed CC0 source. The authorized response cache is bounded to 2 MiB. No periodic work, foreground service, account, or local AI model is included.
 
@@ -114,3 +114,7 @@ Data remains on this device. Android cloud backup and device transfer are disabl
 The bundled exercises are original OpenTabs practice material; no commercial song transcription is bundled. A song title used in a voice parser test does not include its tablature or audio.
 
 Next milestone: validate the update on the actual Meswao tablet, add backup/export, and expand the native catalog only through explicitly licensed sources or documented provider agreements. Broad commercial-song tablature requires licensing beyond metadata access.
+
+## iOS foundation (development branch)
+
+A native SwiftUI iPhone/iPad preview opens the three original exercises from shared Kotlin code. This is the first migration phase, not Android feature parity. See [iOS setup, CI, limitations, and migration plan](docs/IOS.md). Android remains the existing Compose app. No repository license has been selected or added; the owner must resolve project licensing before distribution.

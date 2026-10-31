@@ -13,7 +13,7 @@ sealed interface VoiceCommand {
 
 object VoiceCommandParser {
     fun parse(spoken: String): VoiceCommand {
-        val text = spoken.trim().trimEnd('.', '!', '?').lowercase(java.util.Locale.ROOT)
+        val text = spoken.trim().trimEnd('.', '!', '?').lowercase()
             .replace(Regex("\\s+"), " ")
         if (text in setOf("find", "find tabs for", "search for")) return VoiceCommand.Unknown
         return when (text) {

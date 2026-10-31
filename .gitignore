@@ -7,3 +7,8 @@ local.properties
 .toolchain/
 *.hprof
 captures/
+# Generated iOS project and local Xcode state (project.yml is the source of truth).
+iosApp/*.xcodeproj/
+iosApp/DerivedData/
+*.xcuserstate
+*.xcresult/
