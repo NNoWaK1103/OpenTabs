@@ -9,6 +9,7 @@ import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,9 +35,15 @@ data class ScreenState(
     val importing: Boolean = false,
     val ready: Boolean = false,
     val startupError: String? = null,
+    val artistQuery: String = "",
+    val onlineSearch: Boolean = true,
+    val searchFilter: ArrangementTag? = null,
+    val nativeOnly: Boolean = false,
+    val downloading: String? = null,
 )
 
 data class DocumentState(val songId: String? = null, val tab: TabDocument? = null, val error: String? = null)
+data class GuitarProImport(val score: GuitarProScore, val tracks: List<GuitarTrack>)
 
 class OpenTabsViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = LibraryRepository(File(application.filesDir, "library"))
@@ -45,6 +52,13 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     val screen = mutableScreen.asStateFlow()
     private val mutableDocument = MutableStateFlow(DocumentState())
     val document = mutableDocument.asStateFlow()
+    private val mutableSearch = MutableStateFlow(SearchSnapshot())
+    val search = mutableSearch.asStateFlow()
+    private val mutableGuitarProImport = MutableStateFlow<GuitarProImport?>(null)
+    val guitarProImport = mutableGuitarProImport.asStateFlow()
+    private val http = providerHttp(File(application.cacheDir, "licensed-search"))
+    private val searchEngine = UnifiedTabSearch(listOf(LocalTabSearchProvider(repository), MusicBrainzProvider(http), TabForgeProvider(http)))
+    private var searchJob: Job? = null
     private val notifications = Channel<String>(Channel.BUFFERED)
     val messages = notifications.receiveAsFlow()
     val spotify = UnconfiguredSpotifyProvider()
@@ -91,8 +105,48 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     fun notify(message: String) { notifications.trySend(message) }
     fun navigate(destination: Destination) {
         mutableScreen.value = screen.value.copy(destination = destination, scrolling = false, fullScreen = false)
+        if (destination == Destination.SEARCH) scheduleSearch(false) else cancelSearch()
     }
-    fun setQuery(query: String) { mutableScreen.value = screen.value.copy(query = query) }
+    fun setQuery(query: String) {
+        mutableScreen.value = screen.value.copy(query = query.take(160), searchFilter = null)
+        if (screen.value.destination == Destination.SEARCH) scheduleSearch()
+    }
+    fun setArtistQuery(artist: String) {
+        mutableScreen.value = screen.value.copy(artistQuery = artist.take(160), searchFilter = null)
+        scheduleSearch()
+    }
+    fun onlineSearch(enabled: Boolean) {
+        mutableScreen.value = screen.value.copy(onlineSearch = enabled)
+        scheduleSearch(false)
+    }
+    fun searchFilter(tag: ArrangementTag?) { mutableScreen.value = screen.value.copy(searchFilter = tag) }
+    fun nativeOnly(enabled: Boolean) { mutableScreen.value = screen.value.copy(nativeOnly = enabled) }
+    fun refreshSearch() { scheduleSearch(false) }
+    fun cancelSearch() {
+        searchJob?.cancel()
+        mutableSearch.value = search.value.copy(pending = 0)
+    }
+    private fun scheduleSearch(debounce: Boolean = true) {
+        cancelSearch()
+        val query = SearchQuery(screen.value.query, screen.value.artistQuery)
+        searchJob = action {
+            if (debounce) delay(450)
+            searchEngine.search(query, screen.value.onlineSearch && !query.isEmpty).collect { mutableSearch.value = it }
+        }
+    }
+    fun openSearchResult(result: TabSearchResult) {
+        result.localId?.let { id -> library.value.songs.firstOrNull { it.id == id }?.let(::open); return }
+        if (screen.value.downloading != null) return
+        mutableScreen.value = screen.value.copy(downloading = "${result.providerId}:${result.id}")
+        action {
+            try {
+                val song = repository.saveAuthorized(searchEngine.retrieve(result))
+                repository.open(song.id)
+                navigate(Destination.NOW_PLAYING)
+                notify("Saved ${song.title} for offline practice, with source attribution.")
+            } finally { mutableScreen.value = screen.value.copy(downloading = null) }
+        }
+    }
     fun filter(filter: LibraryFilter) { mutableScreen.value = screen.value.copy(filter = filter) }
     fun fullScreen(enabled: Boolean) { mutableScreen.value = screen.value.copy(fullScreen = enabled) }
     fun scroll(enabled: Boolean) {
@@ -127,18 +181,49 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
                         if (it.moveToFirst()) it.getString(0) else null
                     } ?: "imported.txt"
                     val input = resolver.openInputStream(uri) ?: error("Cannot read the selected file.")
-                    repository.importTab(name, input)
+                    if (name.substringAfterLast('.').equals("gp", ignoreCase = true)) {
+                        val score = input.use { withContext(Dispatchers.Default) { GuitarProPreview.decode(it) } }
+                        val tracks = withContext(Dispatchers.Default) { score.tracks.filter { score.nativeSupported(it) } }
+                        require(tracks.isNotEmpty()) { "No supported six-string, single-staff arrangements with authored frets were found." }
+                        mutableGuitarProImport.value = GuitarProImport(score, tracks)
+                        null
+                    } else repository.importTab(name, input)
                 }
+                if (song != null) {
+                    repository.open(song.id)
+                    navigate(Destination.NOW_PLAYING)
+                    notify("Imported ${song.title}. Use Edit details to set artist and tuning.")
+                }
+            } finally { mutableScreen.value = screen.value.copy(importing = false) }
+        }
+    }
+
+    fun dismissGuitarProImport() { mutableGuitarProImport.value = null }
+    fun importGuitarTrack(track: GuitarTrack) {
+        val pending = guitarProImport.value ?: return
+        mutableGuitarProImport.value = null
+        mutableScreen.value = screen.value.copy(importing = true)
+        action {
+            try {
+                val tab = withContext(Dispatchers.Default) { pending.score.document(track.id) }
+                val title = "${pending.score.title} · ${track.name}"
+                val song = repository.importTab("$title.txt", tab.lines.joinToString("\n").byteInputStream())
+                repository.edit(song.id, title, pending.score.artist, tuningLabel(track.tuning), "GP7 position preview")
                 repository.open(song.id)
                 navigate(Destination.NOW_PLAYING)
-                notify("Imported ${song.title}. Use Edit details to set artist and tuning.")
+                notify("Imported authored positions. Written measures only; repeats, techniques, and playback are not interpreted.")
             } finally { mutableScreen.value = screen.value.copy(importing = false) }
         }
     }
 
     fun voice(text: String) {
         when (val command = VoiceCommandParser.parse(text)) {
-            is VoiceCommand.Find -> { setQuery(command.query); navigate(Destination.SEARCH) }
+            is VoiceCommand.Find -> {
+                val original = Regex("(?i)^(?:find tabs for|search for|find) (.+?) by (.+?)[.!?]*$").matchEntire(text.trim())
+                mutableScreen.value = screen.value.copy(query = original?.groupValues?.get(1) ?: command.query,
+                    artistQuery = original?.groupValues?.get(2).orEmpty(), searchFilter = null, nativeOnly = false)
+                navigate(Destination.SEARCH)
+            }
             VoiceCommand.Favorites -> { setQuery(""); filter(LibraryFilter.FAVORITES); navigate(Destination.LIBRARY) }
             VoiceCommand.Practice -> { setQuery(""); navigate(Destination.PRACTICE) }
             VoiceCommand.StartScroll -> { navigate(Destination.NOW_PLAYING); scroll(true) }

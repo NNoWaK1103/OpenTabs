@@ -41,6 +41,7 @@ fun TabViewer(library: LibraryState, screen: ScreenState, document: DocumentStat
         return
     }
     var editing by remember(song.id) { mutableStateOf(false) }
+    var sourceDetails by remember(song.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(horizontal = if (screen.fullScreen) 8.dp else 16.dp)) {
         if (screen.fullScreen) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -53,7 +54,7 @@ fun TabViewer(library: LibraryState, screen: ScreenState, document: DocumentStat
                     Text("NOW PLAYING · LOCAL TAB", color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium)
                     Text(song.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 2)
-                    Text(listOf(song.artist, song.album).filter { it.isNotBlank() }.joinToString(" · "),
+                    Text(listOf(song.artist, song.album, song.provenance?.arrangement.orEmpty()).filter { it.isNotBlank() }.joinToString(" · "),
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
                 }
                 IconToggleButton(checked = song.favorite, onCheckedChange = { vm.favorite(song) }) {
@@ -66,6 +67,12 @@ fun TabViewer(library: LibraryState, screen: ScreenState, document: DocumentStat
                 FilterChip(selected = song.practice, onClick = { vm.practice(song) }, label = { Text("Practice list") })
                 TextButton(onClick = { editing = true }) { Text("Edit details") }
                 TextButton(onClick = { vm.fullScreen(true) }) { Text("Full screen") }
+                if (song.provenance != null) TextButton(onClick = { sourceDetails = true }) { Text("Source & license") }
+            }
+            song.provenance?.let { source ->
+                Text("${source.provider} · ${source.license} · ${source.attribution}",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp))
             }
         }
         val tab = document.tab
@@ -81,6 +88,16 @@ fun TabViewer(library: LibraryState, screen: ScreenState, document: DocumentStat
         vm.edit(song, title, artist, tuning, album)
         editing = false
     })
+    if (sourceDetails) song.provenance?.let { source ->
+        AlertDialog(onDismissRequest = { sourceDetails = false }, title = { Text("Source & license") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${source.provider} · ${source.arrangement}")
+                Text(source.attribution)
+                Text("${source.license}\n${source.licenseUrl}", style = MaterialTheme.typography.bodySmall)
+                Text(source.sourceUrl, style = MaterialTheme.typography.bodySmall)
+                Text(source.notice, style = MaterialTheme.typography.bodySmall)
+            } }, confirmButton = { TextButton(onClick = { sourceDetails = false }) { Text("Close") } })
+    }
 }
 
 @Composable

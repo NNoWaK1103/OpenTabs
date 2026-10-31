@@ -15,6 +15,7 @@ data class Song(
     val practice: Boolean = false,
     val lastOpened: Long = 0,
     val imported: Boolean = true,
+    val provenance: Provenance? = null,
 )
 
 @Serializable
@@ -40,7 +41,7 @@ data class LibraryState(
 )
 
 object LocalSearch {
-    private fun normalize(value: String) = Normalizer.normalize(value, Normalizer.Form.NFD)
+    fun normalize(value: String) = Normalizer.normalize(value, Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
         .replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
 

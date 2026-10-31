@@ -34,15 +34,15 @@ fun SettingsScreen(settings: ViewerSettings, vm: OpenTabsViewModel) {
         Text("Optional connections", style = MaterialTheme.typography.titleLarge)
         IntegrationCard("Spotify · not configured", (vm.spotify.availability as Availability.Unavailable).reason)
         IntegrationCard("Music identification · unavailable", (vm.recognition.availability as Availability.Unavailable).reason)
-        IntegrationCard("Online tab catalogs · planned", "Search currently uses your local library. Songsterr and Ultimate Guitar require authorized access before a provider can be added.")
+        IntegrationCard("Online search · available", "MusicBrainz supplies song metadata. TabForge’s small CC0 catalog supplies original authored guitar arrangements. Songsterr and Ultimate Guitar are not connected. Use Search → Sources for availability and attribution.")
         HorizontalDivider()
         Text("Voice commands", style = MaterialTheme.typography.titleLarge)
         Text("Tap the microphone, then Start voice command. Availability and offline support depend on the Android speech service installed on your tablet.")
         Text("‘Find tabs for [title] by [artist]’\n‘Open my favorites’\n‘Show my practice list’\n‘Start scrolling’ / ‘Stop scrolling’\n‘Increase tab size’ / ‘Decrease tab size’",
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         HorizontalDivider()
-        Text("OpenTabs 0.1.0 · Native. Offline. Yours.", style = MaterialTheme.typography.labelLarge)
-        Text("Plain-text .txt and .tab files, up to 512 KiB, 6,000 lines, and 1,000 columns. Guitar Pro, MusicXML, tab audio playback, and synchronized playback are not implemented. The play control starts scrolling only.",
+        Text("OpenTabs 0.2.0 · Native. Offline. Yours.", style = MaterialTheme.typography.labelLarge)
+        Text("Text .txt/.tab: up to 512 KiB, 6,000 lines, 1,000 columns. ZIP-based GP7 .gp: bounded, six-string position previews with authored frets. GP3–GP5, GPX, MusicXML, audio playback, and synchronization are not implemented. The play control starts scrolling only.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

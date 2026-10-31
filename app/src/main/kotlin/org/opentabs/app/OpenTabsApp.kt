@@ -38,6 +38,8 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
     val library by vm.library.collectAsStateWithLifecycle()
     val screen by vm.screen.collectAsStateWithLifecycle()
     val document by vm.document.collectAsStateWithLifecycle()
+    val search by vm.search.collectAsStateWithLifecycle()
+    val guitarProImport by vm.guitarProImport.collectAsStateWithLifecycle()
     val snackbars = remember { SnackbarHostState() }
     val context = LocalContext.current
     var microphoneDialog by remember { mutableStateOf(false) }
@@ -146,11 +148,11 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 IconButton(onClick = { vm.navigate(Destination.SEARCH) }) {
-                                    Icon(Icons.Default.Search, "Search local tabs")
+                                    Icon(Icons.Default.Search, "Search tabs")
                                 }
                                 IconButton(onClick = { microphoneDialog = true }) { MicrophoneIcon() }
                                 Button(enabled = !screen.importing, onClick = {
-                                    import.launch(arrayOf("text/*", "application/octet-stream"))
+                                    import.launch(arrayOf("text/*", "application/octet-stream", "application/zip"))
                                 }) {
                                     Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                                     Spacer(Modifier.width(4.dp))
@@ -162,7 +164,8 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
                         Box(Modifier.weight(1f).fillMaxWidth()) {
                             when (screen.destination) {
                                 Destination.NOW_PLAYING -> TabViewer(library, screen, document, vm)
-                                Destination.SEARCH, Destination.LIBRARY, Destination.PRACTICE -> LibraryScreen(library, screen, vm)
+                                Destination.SEARCH -> SearchScreen(search, screen, vm)
+                                Destination.LIBRARY, Destination.PRACTICE -> LibraryScreen(library, screen, vm)
                                 Destination.SETTINGS -> SettingsScreen(library.settings, vm)
                             }
                         }
@@ -187,6 +190,17 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
         },
         confirmButton = { TextButton(onClick = { microphoneDialog = false; startVoice() }) { Text("Start voice command") } },
         dismissButton = { TextButton(onClick = { microphoneDialog = false }) { Text("Close") } })
+    guitarProImport?.let { pending -> AlertDialog(onDismissRequest = vm::dismissGuitarProImport,
+        title = { Text("Choose an arrangement") },
+        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(pending.score.title, fontWeight = FontWeight.Bold)
+            Text("GP7 preview preserves authored string/fret positions. Repeats, expressive techniques, and playback are not interpreted.")
+            pending.tracks.forEach { track ->
+                OutlinedButton(onClick = { vm.importGuitarTrack(track) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("${track.name} · ${org.opentabs.core.tuningLabel(track.tuning)}")
+                }
+            }
+        } }, confirmButton = { TextButton(onClick = vm::dismissGuitarProImport) { Text("Cancel") } }) }
 }
 
 private fun Destination.icon(): ImageVector = when (this) {

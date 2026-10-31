@@ -10,18 +10,6 @@ sealed interface Availability {
     data class Unavailable(val reason: String) : Availability
 }
 
-interface TabSearchProvider {
-    val name: String
-    val availability: Availability
-    suspend fun search(query: String): List<Song>
-}
-
-class LocalTabSearchProvider(private val library: LibraryRepository) : TabSearchProvider {
-    override val name = "Local library"
-    override val availability = Availability.Available
-    override suspend fun search(query: String) = LocalSearch.search(library.state.value.songs, query)
-}
-
 interface NowPlayingProvider {
     val availability: Availability
     val tracks: Flow<TrackInfo?>

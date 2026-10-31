@@ -1,5 +1,7 @@
 # Architecture and integration boundaries
 
+Version 0.2 adds the independently implemented `TabSearchProvider` search/retrieval model, concurrent coordinator, HTTP/caching layer, MusicBrainz metadata adapter, TabForge CC0 source, and streaming GP7 position-preview decoder. See [provider research and implementation limits](PROVIDERS.md) for the current rights matrix and native format support. Spotify and music-recognition boundaries below remain optional and unconfigured.
+
 ## Offline application
 
 `LibraryRepository` exposes a `StateFlow<LibraryState>` for metadata and preferences. Every mutation executes on the I/O dispatcher under a mutex. `library.json` is replaced only after its temporary file has been flushed and synced. The new state is published after persistence succeeds. A tab body is written before its metadata is indexed; deletion removes metadata before cleaning up the body. A crash during either operation can leave an unreferenced file, not a new index entry pointing to unwritten content. Corrupt or unsupported metadata versions fail visibly without overwriting the user's index.
@@ -8,11 +10,11 @@ Tab bodies are separate files named by generated identifiers, not user-selected 
 
 The Android ViewModel separates screen state, persistent library state, transient notifications, and the current document. Metadata changes do not reload the current document. Compose collects state with lifecycle awareness. The tab view uses a vertical lazy list inside a horizontal scroll container. Monospace text measurement allocates the full document width without composing every line. Auto-scroll runs from the frame clock only when enabled, yields during touch scrolling, and stops at the end or on pause/navigation. Full-screen mode hides system bars and provides both an exit button and Android Back handling.
 
-`TabDecoder` is the future format boundary. The implemented `PlainTextTabDecoder` produces a `TabDocument` of text lines. A future Guitar Pro or MusicXML parser will need a structured score model and a native score renderer; it must not be advertised merely by accepting another file extension.
+`PlainTextTabDecoder` validates text imports and the final native preview. `GuitarProPreview` now reads a bounded ZIP/GPIF score into typed track, bar, voice, beat, and authored string/fret records. It converts supported six-string arrangements into labeled text position previews for the same viewer. Full score engraving, repeat interpretation, expressive-technique rendering, and MusicXML parsing remain unimplemented; see the explicit limits in PROVIDERS.md.
 
 ## Authorized external tab search
 
-`TabSearchProvider` declares a name, availability, and suspending search function. `LocalTabSearchProvider` is implemented over the repository and the same `LocalSearch` used by the UI. An external provider must establish a licensed API contract and handle attribution, authentication, rate limits, caching rights, error states, and content availability before appearing as a functional source. Songsterr and Ultimate Guitar are future candidates, not implemented integrations. There are no guessed API URLs or scraping fallbacks.
+`TabSearchProvider` declares source identity, availability, online/offline operation, a suspending search function, and an explicitly separate retrieval function. `LocalTabSearchProvider` searches repository metadata; `MusicBrainzProvider` returns metadata only; `TabForgeProvider` supplies the author's reviewed CC0 demo arrangements. `UnifiedTabSearch` isolates failures, bounds concurrency, emits partial results, and applies deadlines. Rights default to denied, and the repository revalidates content before saving a permitted offline copy with provenance. Future providers must establish a documented API and rights for display/cache/save independently. Songsterr and Ultimate Guitar remain unconnected; there are no guessed private URLs or scraping fallbacks.
 
 ## Spotify
 

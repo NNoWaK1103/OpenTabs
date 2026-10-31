@@ -1,6 +1,16 @@
-# OpenTabs 0.1
+# OpenTabs 0.2
 
-A native Kotlin / Jetpack Compose guitar tablature companion. Built for landscape tablet practice, with a compact portrait layout. No WebView, advertising, accounts, or paid service is needed for the core app.
+A native Kotlin / Jetpack Compose guitar tablature companion. Built for landscape tablet practice, with a compact portrait layout. No WebView, advertising, accounts, or paid service is needed for the core app. Version 0.2 adds unified local/online search and authorized native guitar-position previews while preserving existing libraries and viewer settings.
+
+## Online search
+
+Search by **Title or keywords** and optionally **Artist**. Results combine saved tabs, MusicBrainz song metadata, and TabForge's small original CC0 guitar catalog. Exact matches rank first; available instrument/role filters and **Native tabs only** help narrow results. Toggle **Search online** off for local results without network requests. Search is canceled when you leave the screen.
+
+**Try `Ashen Meridian`** to retrieve the author's CC0 demo. Select **Details → Save & open** on Lead Gtr, Lead Harmony, or Clean Gtr to display the authored positions in the existing native viewer and save an attributed offline copy. The preview shows written measures, not interpreted repeats, techniques, rhythmic spacing, or playback. Different string counts are clearly marked unsupported.
+
+**MusicBrainz results are metadata only: they do not contain tablature.** Online discovery is worldwide, but native online tab coverage is currently one CC0 demo composition with multiple arrangements. OpenTabs does not promise a tab for every commercial song. Songsterr and Ultimate Guitar are not connected; no protected pages or private APIs are scraped.
+
+See [provider research, licensing, cache permissions, and native format limits](docs/PROVIDERS.md).
 
 ## Install on your tablet
 
@@ -24,7 +34,7 @@ The build output is `app/build/outputs/apk/debug/app-debug.apk`. The workflow ar
 - Adjustable auto-scroll (5–120 density-independent pixels/second), pause/resume, manual scrolling, and return to top. Scrolling pauses on leaving the viewer or backgrounding the app. **The play button scrolls text; it does not play audio.**
 - Android Storage Access Framework import. A validated copy is stored privately, so the library works even if the original is moved or its URI permission expires.
 - Persistent title, artist, album, tuning, favorites, recents, practice flags, current tab, and viewer settings. Use **Edit details** to enter metadata; the app does not guess an artist from a filename.
-- Offline searches across title, artist, album, and tuning. Partial words, multiple keywords, case differences, and accent differences are handled.
+- Offline library searches across title, artist, album, and tuning. Unified Search adds local/online title and artist ranking, fuzzy matches, source attribution, arrangement metadata, and supported filters.
 - Favorites, recent tabs, practice list, and deletion of imported copies. Deletion preserves your original source file. Original built-in exercises cannot be deleted.
 - Optional Android voice commands, when an installed speech recognition service supports them.
 
@@ -44,7 +54,7 @@ Speech is delegated to Android's `ACTION_RECOGNIZE_SPEECH` activity. That servic
 
 ## Supported import format
 
-Plain-text `.txt` and `.tab` files, encoded as UTF-8 (optional BOM) or UTF-16 LE/BE with a BOM. At least one group of six consecutive string lines is required, for example:
+Plain-text `.txt` and `.tab` files, encoded as UTF-8 (optional BOM) or UTF-16 LE/BE with a BOM. Supported ZIP-based GP7 `.gp` files can also be imported; select a six-string arrangement with authored frets in the chooser. GP3–GP5, GPX, and MusicXML imports remain unavailable. At least one group of six consecutive string lines is required in text files, for example:
 
 ```text
 My original exercise
@@ -78,23 +88,23 @@ To run the included Compose smoke test on a connected Android device or running 
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-The smoke test opens the app, searches the library, opens a matching exercise, and checks viewer controls. JVM tests cover search and matching, storage across repository restarts, favorites, practice management, concurrent mutations, import limits and encodings, settings persistence, optional-provider states, and voice parsing. `:app:testDebugUnitTest` is included for future Android-specific unit tests; the current unit tests live in `core`.
+Tablet smoke tests search offline exercises and save/open a licensed arrangement using deterministic provider fixtures and the real native parser. JVM tests cover provider concurrency, cancellation, deadlines, deduplication, fuzzy ranking, HTTP validation, offline cache fallback, content rights, real GP7 parsing, legacy storage, favorites, practice, text import, settings, and voice commands. Optional live checks run with `./gradlew :core:test -PliveProviders=true`. `:app:testDebugUnitTest` is included for future Android-specific unit tests; current unit tests live in `core`.
 
 ## Architecture and data
 
 `core/` is a pure Kotlin JVM module containing domain models, the tested repository, search, decoders, voice parsing, original exercises, and provider interfaces. `app/` contains the Android lifecycle ViewModel, SAF import, delegated speech activity, and native Compose screens. See [architecture and integration setup](docs/ARCHITECTURE.md).
 
-The app stores a small JSON metadata index and separate UTF-8 tab files in app-private storage. Writes use a serialized coroutine mutex, a synced temporary file, and atomic replacement. I/O runs on `Dispatchers.IO`. A corrupt index is reported and preserved rather than overwritten. Tab bodies are loaded only for the selected tab; a lazy list composes visible lines. No periodic work, foreground service, internet permission, or local AI model is included.
+The app stores a small JSON metadata index and separate UTF-8 tab files in app-private storage. Writes use a serialized coroutine mutex, a synced temporary file, and atomic replacement. I/O runs on `Dispatchers.IO`. A corrupt index is reported and preserved rather than overwritten. Tab bodies are loaded only for the selected tab; a lazy list composes visible lines. Online search uses the internet permission only for user-driven requests to the documented metadata API and the reviewed CC0 source. The authorized response cache is bounded to 2 MiB. No periodic work, foreground service, account, or local AI model is included.
 
 Data remains on this device. Android cloud backup and device transfer are disabled. Uninstalling or clearing app data removes imported copies, favorites, and settings; retain your original files. Auto-scroll's running state and full-screen mode are intentionally session-only; font, line spacing, speed, and keep-awake preferences persist.
 
-## Deliberately unavailable in 0.1
+## Deliberately unavailable in 0.2
 
 - **Spotify:** an explicit unconfigured provider. No account connection or live track monitoring is claimed.
 - **Music identification:** an explicit unavailable provider. No Shazam recognition or fabricated recognition results.
-- **Online tablature:** local results only. Songsterr / Ultimate Guitar adapters require authorized access; no scraping or invented endpoints.
-- **Guitar Pro / MusicXML, tab synthesis, playback synchronization, and automated transcription:** not implemented.
+- **Songsterr / Ultimate Guitar native tabs:** require documented authorized access; no scraping or invented endpoints. MusicBrainz song discovery supplies no tabs.
+- **Full Guitar Pro engraving / playback, GP3–GP5 / GPX, MusicXML, tab synthesis, playback synchronization, and automated transcription:** not implemented. The supported GP7 path is a limited native authored-position preview.
 
 The bundled exercises are original OpenTabs practice material; no commercial song transcription is bundled. A song title used in a voice parser test does not include its tablature or audio.
 
-Next milestone: validate import, rotation, scroll speed, readability, and speech availability on the actual Meswao tablet, then add a documented backup/export flow before developing authorized provider integrations.
+Next milestone: validate the update on the actual Meswao tablet, add backup/export, and expand the native catalog only through explicitly licensed sources or documented provider agreements. Broad commercial-song tablature requires licensing beyond metadata access.
