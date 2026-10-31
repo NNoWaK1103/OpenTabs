@@ -20,6 +20,7 @@ class AppSmokeTest {
         compose.onNodeWithContentDescription("Search tabs").performClick()
         compose.onNodeWithContentDescription("Search online sources").performClick()
         compose.onNodeWithText("Title or keywords").performTextInput("Evening")
+        compose.onNodeWithText("Title or keywords").performImeAction()
         compose.waitUntil(timeoutMillis = 10_000) {
             compose.onAllNodesWithText("Evening arpeggios").fetchSemanticsNodes().isNotEmpty() &&
                 compose.onAllNodesWithText("Open tab").fetchSemanticsNodes().size == 1
@@ -42,6 +43,7 @@ class AppSmokeTest {
         compose.waitUntil(timeoutMillis = 15_000) { compose.onAllNodesWithContentDescription("Search tabs").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Search tabs").performClick()
         compose.onNodeWithText("Title or keywords").performTextInput("Ashen Meridian")
+        compose.onNodeWithText("Title or keywords").performImeAction()
         compose.waitUntil(timeoutMillis = 20_000) {
             compose.onAllNodesWithContentDescription("Details for Ashen Meridian, Lead Gtr").fetchSemanticsNodes().isNotEmpty()
         }
