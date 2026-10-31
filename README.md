@@ -1,116 +1,54 @@
-# OpenTabs 0.3
+# OpenTabs 0.3.1
 
-A Kotlin / Jetpack Compose guitar tablature companion with native tab viewing and optional embedded website browsing. Built for landscape tablet practice, with a compact portrait layout. Version 0.3 adds Songsterr and Ultimate Guitar browsing while preserving existing libraries, native search, authorized guitar-position previews, settings, voice commands, and optional integration boundaries. The native features need no account or paid service; third-party websites control their own ads, authentication, and subscriptions.
+A native Kotlin / Jetpack Compose guitar companion with direct **Songsterr** and **Ultimate Guitar** search, an embedded Android WebView, and an offline six-line tablature viewer. This update reuses the v0.3 browser implementation from Git history and removes the metadata-discovery workflow.
 
-## Songsterr and Ultimate Guitar
+## Find a guitar tab
 
-In **Search**, enter an artist and song title, then choose a source under **Website results**. The provider's original search page opens inside OpenTabs; tap a website result to view its tab. Source labels and the current HTTPS address remain visible. Use Back/Forward, Refresh/Stop, Zoom, Full screen, and Screen awake in the compact performance toolbar. **Native tabs** returns to the existing native search and viewer.
+1. Open **Search** and enter a **Song title**, **Artist**, or both.
+2. Select **Songsterr** or **Ultimate Guitar**, then tap **Find tabs** (or the keyboard Search key).
+3. The provider's original search results open inside OpenTabs. Select a tab on that page to view it.
+4. Use Back/Forward, Refresh/Stop, Zoom, Full screen, Screen awake, or source switching in the existing viewer toolbar. **Native tabs** returns to the search form.
 
-If a site blocks embedded browsing or a page cannot load, choose **Open in browser**. No paywalls, ads, sign-in screens, or access controls are bypassed. Normal website content is preserved, and the WebView uses its genuine User-Agent. Android System WebView must be enabled; updating it can improve compatibility. See [browser behavior, security, lifecycle, and limitations](docs/WEB_BROWSER.md).
+These are the only online discovery sources. Typing in the form does not start network searches. There are no metadata-only song cards, additional online catalogs, private API calls, or scraping. Provider results remain the website's own UI with a persistent source label and current HTTPS address.
 
-## Online search
+If a site blocks embedded viewing, a page fails, or WebView is unavailable, choose **Open in browser**. Website ads, cookie consent, authentication, subscriptions, and access restrictions remain controlled by the provider. No content or access controls are modified. See [browser lifecycle, security, and limitations](docs/WEB_BROWSER.md) and [history inspection and reuse](docs/SEARCH_SIMPLIFICATION.md).
 
-Search by **Title or keywords** and optionally **Artist**. Results combine saved tabs, MusicBrainz song metadata, and TabForge's small original CC0 guitar catalog. Exact matches rank first; available instrument/role filters and **Native tabs only** help narrow results. Toggle **Search online** off for local results without network requests. Search is canceled when you leave the screen.
+## Saved tabs and practice
 
-**Try `Ashen Meridian`** to retrieve the author's CC0 demo. Select **Details → Save & open** on Lead Gtr, Lead Harmony, or Clean Gtr to display the authored positions in the existing native viewer and save an attributed offline copy. The preview shows written measures, not interpreted repeats, techniques, rhythmic spacing, or playback. Different string counts are clearly marked unsupported.
+**My Tabs** retains local title/artist/album/tuning search, favorites, recents, practice lists, and all existing saved files and source/license attribution. Open a saved tab in the native monospace viewer for six-string formatting, horizontal/vertical scrolling, adjustable text size and spacing, auto-scroll, full screen, and screen-awake controls. The play button scrolls text; it does not play audio.
 
-**MusicBrainz results are metadata only: they do not contain tablature.** Native online tab coverage is currently one CC0 demo composition with multiple arrangements. For commercial-song tabs, use the embedded Songsterr or Ultimate Guitar website, subject to the provider's availability and access rules. No protected pages or private APIs are scraped, and website tabs are not copied into the native offline library.
+Three original offline exercises remain included. **Import** supports validated `.txt` / `.tab` text and ZIP-based GP7 `.gp` files with authored six-string frets. GP7 previews show written measures; repeats, expressive techniques, rhythmic spacing, and playback are not interpreted. GP3–GP5, GPX, and MusicXML imports remain unsupported. Only import material you are authorized to use. See [sources and native format limits](docs/PROVIDERS.md).
 
-See [provider research, licensing, cache permissions, and native format limits](docs/PROVIDERS.md).
+Website pages are not extracted or saved as native tabs. Previous native downloads remain readable offline. The online download/discovery pipeline and its HTTP dependencies have been removed; saved library serialization remains compatible.
 
-## Install on your tablet
+## Voice and existing connections
 
-1. Open [Android APK builds](https://github.com/NNoWaK1103/OpenTabs/actions/workflows/android-build.yml).
-2. Select a successful run for `main` and download **OpenTabs-debug-apk** under Artifacts. GitHub requires you to sign in to download workflow artifacts.
-3. Unzip the download and copy `app-debug.apk` to the tablet.
-4. On the tablet, open the APK in Files and allow that file manager to install unknown apps when Android prompts you. Install **OpenTabs**.
-5. Open **My Tabs** for three original exercises, or tap **Import** to select your own `.txt` / `.tab` file.
+Tap the microphone and choose **Start voice command**. Android's installed speech service handles recognition and microphone access; manual controls remain available when it is missing. No background recording is added.
 
-The build output is `app/build/outputs/apk/debug/app-debug.apk`. The workflow artifact is retained for 30 days; run the workflow again if it expires. This is a debug build for personal testing, not a Play Store release.
+Supported commands include `Find tabs for [title] by [artist]`, `Open my favorites`, `Show my practice list`, `Start scrolling`, `Stop scrolling`, `Increase tab size`, and `Decrease tab size`. Voice search fills the same manual form and retains the selected tab source.
 
-`gradle/debug.keystore` is a deliberately public Android **debug-only** key, using the conventional `android` password. It keeps test APK signatures consistent across CI runs so subsequent builds can update the installed app without clearing your library. Never use this public key for a production release; there are no production signing credentials in the repository.
+The existing Spotify and music-identification integration boundaries are unchanged. They remain explicitly unconfigured/unavailable in this repository; this update does not add credentials, SDKs, polling, or simulated connections.
 
-**Device compatibility:** Android 8.0 (API 26) or newer; compile and target API 35. The Meswao B3 Basic's Android version, processor, RAM, and screen density have not been verified. Check **Android Settings → About tablet** for Android 8.0+ before installation. No specific device hardware specification or physical-device test is assumed. The APK has no app-specific CPU architecture restriction; Compose's optional native graphics helper supplies the standard Android ABIs.
+## Install
 
-## What works
+1. Open [Android APK workflow runs](https://github.com/NNoWaK1103/OpenTabs/actions/workflows/android-build.yml), including the pull request's successful run.
+2. Download **OpenTabs-debug-apk** under Artifacts (GitHub sign-in required).
+3. Unzip it and copy `app-debug.apk` to your tablet. Open it in Files and allow that file manager to install apps when Android prompts you.
 
-- Five native destinations: Now Playing, Search, My Tabs, Practice, Settings.
-- A dark, high-contrast interface; navigation rail on wide screens, bottom navigation on compact screens. Rotation remains enabled.
-- Native six-string text tab display with monospace alignment, horizontal and vertical scrolling, 12–32 sp fonts, adjustable line spacing, full-screen mode, and keep-screen-awake while viewing.
-- Adjustable auto-scroll (5–120 density-independent pixels/second), pause/resume, manual scrolling, and return to top. Scrolling pauses on leaving the viewer or backgrounding the app. **The play button scrolls text; it does not play audio.**
-- Android Storage Access Framework import. A validated copy is stored privately, so the library works even if the original is moved or its URI permission expires.
-- Persistent title, artist, album, tuning, favorites, recents, practice flags, current tab, and viewer settings. Use **Edit details** to enter metadata; the app does not guess an artist from a filename.
-- Offline library searches across title, artist, album, and tuning. Unified Search adds local/online title and artist ranking, fuzzy matches, source attribution, arrangement metadata, and supported filters.
-- Favorites, recent tabs, practice list, and deletion of imported copies. Deletion preserves your original source file. Original built-in exercises cannot be deleted.
-- Optional Android voice commands, when an installed speech recognition service supports them.
+Version 0.3.1 uses version code 4 and the existing debug signing key, so it can update the prior app while retaining the library. `gradle/debug.keystore` is a deliberately public debug-only key with the conventional `android` password; never use it for production releases. Workflow APK artifacts are retained for 30 days.
 
-Tap the microphone button, then **Start voice command**. Supported commands include:
+Android 8.0+ (API 26) and an enabled, updated System WebView are required. Physical Meswao B3 Basic performance and website compatibility have not been verified. Third-party scripts may use more resources than native tabs; use the external browser when necessary.
 
-```text
-Find tabs for [title] by [artist].
-Open my favorites.
-Show my practice list.
-Start scrolling.
-Stop scrolling.
-Increase tab size.
-Decrease tab size.
-```
+## Build and validation
 
-Speech is delegated to Android's `ACTION_RECOGNIZE_SPEECH` activity. That service handles microphone access and may send audio to its own servers; availability, permissions, language support, and offline recognition depend on the installed service. OpenTabs does not request microphone permission on launch, capture microphone audio, or run a background recognizer. Manual operation works without a speech service.
-
-## Supported import format
-
-Plain-text `.txt` and `.tab` files, encoded as UTF-8 (optional BOM) or UTF-16 LE/BE with a BOM. Supported ZIP-based GP7 `.gp` files can also be imported; select a six-string arrangement with authored frets in the chooser. GP3–GP5, GPX, and MusicXML imports remain unavailable. At least one group of six consecutive string lines is required in text files, for example:
-
-```text
-My original exercise
-e|------0---------|
-B|----0---0-------|
-G|--0-------0-----|
-D|2-----------2---|
-A|----------------|
-E|0---------------|
-```
-
-Common ASCII tab techniques (`h`, `p`, `/`, `\`, `b`, `r`, `x`, `~`) are displayed as text. Headers and practice notes are preserved. Tabs expand to four-column stops; line endings are normalized. Limits are **512 KiB** before and after normalization, **6,000 lines**, and **1,000 columns per line**. Unsupported encodings, binary/control data, and files without six-string text notation produce a descriptive error without adding a library entry. `.tab` means plain text, not an arbitrary binary tab format. Copy and import only material you are authorized to use.
-
-## Build without Android Studio
-
-GitHub Actions builds automatically on pushes to `main`, on pull requests, and manually with **Run workflow**. No signing secrets or external-service credentials are needed. The workflow installs JDK 17 and Android SDK 35, validates the Gradle wrapper, caches Gradle, runs core tests and Android lint, compiles the app and instrumentation tests, and uploads the debug APK and reports. Action versions are pinned to verified immutable commits; wrapper downloads have a pinned SHA-256.
-
-After the build job, two tablet emulator jobs run the Compose smoke test on API 26 and API 35, covering the minimum and target Android versions. Their reports are uploaded separately. The APK artifact is uploaded by the build job before device tests run.
-
-For a local build, install JDK 17 and the Android command-line SDK. Set `JAVA_HOME` and `ANDROID_HOME`, then run:
+With JDK 17 and Android SDK 35 installed, set `JAVA_HOME` and `ANDROID_HOME`, then run:
 
 ```sh
-./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
 ```
 
-On Windows use `gradlew.bat`. No separately installed Gradle is required. The pinned build stack is AGP 8.9.2, Gradle 8.11.1, Kotlin / Compose compiler 2.1.20, Compose BOM 2025.04.01, and Material 3. These are deliberately compatible stable versions, rather than floating dependency versions.
+Use `gradlew.bat` on Windows. The APK is `app/build/outputs/apk/debug/app-debug.apk`. The existing pinned GitHub Actions workflow runs tests, lint, debug APK compilation, and Android 8 / Android 15 tablet emulator checks for pushes to main and pull requests.
 
-To run the included Compose smoke test on a connected Android device or running emulator:
+JVM tests cover approved provider search/tab URLs, encoding, source switching, unsafe URLs, fallback/error states, GP7/text imports, old saved-library compatibility, favorites, practice, and voice commands. Device tests exercise the real search form and ViewModel through both providers' WebView search-to-tab navigation using clearly labeled, test-only website fixtures; they also retain browser lifecycle/recovery and native viewer regression coverage. Production never uses fixture interception.
 
-```sh
-./gradlew :app:connectedDebugAndroidTest
-```
-
-Tablet smoke tests search offline exercises and save/open a licensed arrangement using deterministic provider fixtures and the real native parser. JVM tests cover provider concurrency, cancellation, deadlines, deduplication, fuzzy ranking, HTTP validation, offline cache fallback, content rights, real GP7 parsing, legacy storage, favorites, practice, text import, settings, and voice commands. Optional live checks run with `./gradlew :core:test -PliveProviders=true`. `:app:testDebugUnitTest` is included for future Android-specific unit tests; current unit tests live in `core`.
-
-## Architecture and data
-
-`core/` is a pure Kotlin JVM module containing domain models, the tested repository, search, decoders, voice parsing, original exercises, and provider interfaces. `app/` contains the Android lifecycle ViewModel, SAF import, delegated speech activity, and native Compose screens. See [architecture and integration setup](docs/ARCHITECTURE.md).
-
-The app stores a small JSON metadata index and separate UTF-8 tab files in app-private storage. Writes use a serialized coroutine mutex, a synced temporary file, and atomic replacement. I/O runs on `Dispatchers.IO`. A corrupt index is reported and preserved rather than overwritten. Tab bodies are loaded only for the selected tab; a lazy list composes visible lines. Online search uses the internet permission only for user-driven requests to the documented metadata API and the reviewed CC0 source. The authorized response cache is bounded to 2 MiB. No periodic work, foreground service, account, or local AI model is included.
-
-Data remains on this device. Android cloud backup and device transfer are disabled. Uninstalling or clearing app data removes imported copies, favorites, and settings; retain your original files. Auto-scroll's running state and full-screen mode are intentionally session-only; font, line spacing, speed, and keep-awake preferences persist.
-
-## Deliberately unavailable in 0.3
-
-- **Spotify:** an explicit unconfigured provider. No account connection or live track monitoring is claimed.
-- **Music identification:** an explicit unavailable provider. No Shazam recognition or fabricated recognition results.
-- **Songsterr / Ultimate Guitar native extraction and offline saving:** not implemented. They are available as embedded websites and external-browser fallback; the original website controls its content. MusicBrainz song discovery supplies no tabs.
-- **Full Guitar Pro engraving / playback, GP3–GP5 / GPX, MusicXML, tab synthesis, playback synchronization, and automated transcription:** not implemented. The supported GP7 path is a limited native authored-position preview.
-
-The bundled exercises are original OpenTabs practice material; no commercial song transcription is bundled. A song title used in a voice parser test does not include its tablature or audio.
-
-Next milestone: validate the update on the actual Meswao tablet, add backup/export, and expand the native catalog only through explicitly licensed sources or documented provider agreements. Broad commercial-song tablature requires licensing beyond metadata access.
+Live website probes are separate opt-in checks: manually dispatch **Android APK** with **live_websites** enabled on API 35+. The stock API 26 WebView stalled on live pages, and repeated Ultimate Guitar probes disconnected the API 35 emulator. Deterministic tests do not establish universal real-site compatibility. See [validation limits](docs/WEB_BROWSER.md).

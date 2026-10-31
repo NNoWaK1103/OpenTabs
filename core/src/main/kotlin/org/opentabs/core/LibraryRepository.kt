@@ -51,26 +51,6 @@ class LibraryRepository(private val directory: File) {
         }
     }
 
-    suspend fun saveAuthorized(tab: AuthorizedTab): Song = withContext(Dispatchers.IO) {
-        val result = tab.result
-        require(result.rights.display && result.rights.save && result.rights.cache) {
-            "This source does not permit saving an offline copy."
-        }
-        // Revalidate native text before indexing, even when the provider already parsed its format.
-        val document = PlainTextTabDecoder.decode("authorized.txt", tab.document.lines.joinToString("\n").byteInputStream())
-        mutex.withLock {
-            val provenance = Provenance(result.source, result.sourceUrl, result.rights.license, result.rights.licenseUrl,
-                result.rights.attribution, "${result.providerId}:${result.id}", result.notice, result.arrangement, result.tags)
-            val existing = state.value.songs.firstOrNull { it.provenance?.arrangementId == provenance.arrangementId }
-            if (existing != null) return@withLock existing
-            val song = Song(java.util.UUID.randomUUID().toString(), result.title, result.artist,
-                tuning = result.tuning.orEmpty(), provenance = provenance)
-            atomicWrite(body(song.id), document.lines.joinToString("\n"))
-            save(state.value.copy(songs = state.value.songs + song))
-            song
-        }
-    }
-
     suspend fun document(id: String): TabDocument = withContext(Dispatchers.IO) {
         require(state.value.songs.any { it.id == id }) { "This tab is no longer in the library." }
         body(id).inputStream().use { PlainTextTabDecoder.decode("tab.txt", it) }

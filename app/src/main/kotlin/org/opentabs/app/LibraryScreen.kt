@@ -34,12 +34,10 @@ fun LibraryScreen(library: LibraryState, screen: ScreenState, vm: OpenTabsViewMo
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Spacer(Modifier.height(16.dp))
         Text(when (screen.destination) {
-            Destination.SEARCH -> "Find your next tab"
             Destination.PRACTICE -> "Make time to play"
             else -> "Your guitar library"
         }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(when (screen.destination) {
-            Destination.SEARCH -> "Search saved titles, artists, albums, and tuning."
             Destination.PRACTICE -> "Your personal practice list. Pick a tab and settle in."
             else -> "Saved on this device. Ready whenever you are."
         }, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
@@ -55,10 +53,6 @@ fun LibraryScreen(library: LibraryState, screen: ScreenState, vm: OpenTabsViewMo
                 FilterChip(selected = screen.filter == filter, onClick = { vm.filter(filter) }, label = { Text(filter.label) })
             }
         }
-        if (screen.destination == Destination.SEARCH) Text(
-            "Offline library only · Online catalogs are not supported yet.",
-            Modifier.padding(vertical = 12.dp), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("${songs.size} ${if (songs.size == 1) "tab" else "tabs"}", Modifier.padding(vertical = 8.dp),
             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         if (songs.isEmpty()) Box(Modifier.weight(1f)) {

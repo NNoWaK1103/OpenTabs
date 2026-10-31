@@ -6,6 +6,20 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class WebTabsTest {
+    @Test fun `the only online discovery destinations are usable provider search pages`() {
+        assertEquals(setOf(WebTabSource.SONGSTERR, WebTabSource.ULTIMATE_GUITAR), WebTabSource.entries.toSet())
+        WebTabSource.entries.forEach { source ->
+            val request = WebTabRequest(source, "Nutshell", "Alice in Chains", 1)
+            assertEquals(WebNavigation.EMBEDDED, WebTabUrls.navigation(request.url))
+            assertEquals(source, WebTabUrls.source(request.url))
+            assertTrue(request.url.contains("Nutshell"))
+            val tabUrl = if (source == WebTabSource.SONGSTERR) "https://www.songsterr.com/a/wsa/test-tab-s1"
+                else "https://tabs.ultimate-guitar.com/tab/test/guitar-tabs-1"
+            assertEquals(WebNavigation.EMBEDDED, WebTabUrls.navigation(tabUrl))
+            assertEquals(tabUrl, WebTabUrls.fallback(tabUrl, request))
+        }
+    }
+
     @Test fun `search builds public website URLs with separately encoded artist and title`() {
         val title = "Nutshell & Friends? #1"
         val artist = "Alice + Chains / live"

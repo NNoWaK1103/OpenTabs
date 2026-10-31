@@ -9,7 +9,6 @@ import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,10 +35,7 @@ data class ScreenState(
     val ready: Boolean = false,
     val startupError: String? = null,
     val artistQuery: String = "",
-    val onlineSearch: Boolean = true,
-    val searchFilter: ArrangementTag? = null,
-    val nativeOnly: Boolean = false,
-    val downloading: String? = null,
+    val tabSource: WebTabSource = WebTabSource.SONGSTERR,
     val webTab: WebTabRequest? = null,
 )
 
@@ -53,13 +49,8 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     val screen = mutableScreen.asStateFlow()
     private val mutableDocument = MutableStateFlow(DocumentState())
     val document = mutableDocument.asStateFlow()
-    private val mutableSearch = MutableStateFlow(SearchSnapshot())
-    val search = mutableSearch.asStateFlow()
     private val mutableGuitarProImport = MutableStateFlow<GuitarProImport?>(null)
     val guitarProImport = mutableGuitarProImport.asStateFlow()
-    private val http = providerHttp(File(application.cacheDir, "licensed-search"))
-    private val searchEngine = UnifiedTabSearch(listOf(LocalTabSearchProvider(repository), MusicBrainzProvider(http), TabForgeProvider(http)))
-    private var searchJob: Job? = null
     val webTabMemory = WebTabMemory()
     private var webRevision = 0L
     private val notifications = Channel<String>(Channel.BUFFERED)
@@ -108,59 +99,24 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     fun notify(message: String) { notifications.trySend(message) }
     fun navigate(destination: Destination) {
         mutableScreen.value = screen.value.copy(destination = destination, scrolling = false, fullScreen = false, webTab = null)
-        if (destination == Destination.SEARCH) scheduleSearch(false) else cancelSearch()
     }
     fun setQuery(query: String) {
-        mutableScreen.value = screen.value.copy(query = query.take(160), searchFilter = null)
-        if (screen.value.destination == Destination.SEARCH) scheduleSearch()
+        mutableScreen.value = screen.value.copy(query = query.take(160))
+    }
+    fun selectTabSource(source: WebTabSource) { mutableScreen.value = screen.value.copy(tabSource = source) }
+    fun searchTabs() {
+        if (screen.value.query.isBlank() && screen.value.artistQuery.isBlank()) return
+        browse(screen.value.tabSource)
     }
     fun browse(source: WebTabSource) {
-        cancelSearch()
         val previous = screen.value.webTab
-        mutableScreen.value = screen.value.copy(destination = Destination.SEARCH, scrolling = false,
+        mutableScreen.value = screen.value.copy(destination = Destination.SEARCH, scrolling = false, tabSource = source,
             webTab = WebTabRequest(source, previous?.title ?: screen.value.query,
                 previous?.artist ?: screen.value.artistQuery, ++webRevision))
     }
     fun closeBrowser() { navigate(Destination.SEARCH) }
-    fun browseResult(result: TabSearchResult, source: WebTabSource) {
-        mutableScreen.value = screen.value.copy(query = result.title, artistQuery = result.artist)
-        browse(source)
-    }
     fun setArtistQuery(artist: String) {
-        mutableScreen.value = screen.value.copy(artistQuery = artist.take(160), searchFilter = null)
-        scheduleSearch()
-    }
-    fun onlineSearch(enabled: Boolean) {
-        mutableScreen.value = screen.value.copy(onlineSearch = enabled)
-        scheduleSearch(false)
-    }
-    fun searchFilter(tag: ArrangementTag?) { mutableScreen.value = screen.value.copy(searchFilter = tag) }
-    fun nativeOnly(enabled: Boolean) { mutableScreen.value = screen.value.copy(nativeOnly = enabled) }
-    fun refreshSearch() { scheduleSearch(false) }
-    fun cancelSearch() {
-        searchJob?.cancel()
-        mutableSearch.value = search.value.copy(pending = 0)
-    }
-    private fun scheduleSearch(debounce: Boolean = true) {
-        cancelSearch()
-        val query = SearchQuery(screen.value.query, screen.value.artistQuery)
-        searchJob = action {
-            if (debounce) delay(450)
-            searchEngine.search(query, screen.value.onlineSearch && !query.isEmpty).collect { mutableSearch.value = it }
-        }
-    }
-    fun openSearchResult(result: TabSearchResult) {
-        result.localId?.let { id -> library.value.songs.firstOrNull { it.id == id }?.let(::open); return }
-        if (screen.value.downloading != null) return
-        mutableScreen.value = screen.value.copy(downloading = "${result.providerId}:${result.id}")
-        action {
-            try {
-                val song = repository.saveAuthorized(searchEngine.retrieve(result))
-                repository.open(song.id)
-                navigate(Destination.NOW_PLAYING)
-                notify("Saved ${song.title} for offline practice, with source attribution.")
-            } finally { mutableScreen.value = screen.value.copy(downloading = null) }
-        }
+        mutableScreen.value = screen.value.copy(artistQuery = artist.take(160))
     }
     fun filter(filter: LibraryFilter) { mutableScreen.value = screen.value.copy(filter = filter) }
     fun fullScreen(enabled: Boolean) { mutableScreen.value = screen.value.copy(fullScreen = enabled) }
@@ -236,7 +192,7 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
             is VoiceCommand.Find -> {
                 val original = Regex("(?i)^(?:find tabs for|search for|find) (.+?) by (.+?)[.!?]*$").matchEntire(text.trim())
                 mutableScreen.value = screen.value.copy(query = original?.groupValues?.get(1) ?: command.query,
-                    artistQuery = original?.groupValues?.get(2).orEmpty(), searchFilter = null, nativeOnly = false)
+                    artistQuery = original?.groupValues?.get(2).orEmpty())
                 navigate(Destination.SEARCH)
             }
             VoiceCommand.Favorites -> { setQuery(""); filter(LibraryFilter.FAVORITES); navigate(Destination.LIBRARY) }
