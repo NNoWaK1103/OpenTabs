@@ -2,7 +2,7 @@
 set -uo pipefail
 
 # Collect visual/live-site evidence even when a test fails, then preserve Gradle's status.
-timeout --signal=TERM --kill-after=30s 420s ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace
+timeout --signal=TERM --kill-after=30s 420s ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace "-Pandroid.testInstrumentationRunnerArguments.liveWebsites=${LIVE_WEBSITES:-false}"
 test_status=$?
 report_dir=app/build/reports/webview
 mkdir -p "$report_dir"

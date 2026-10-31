@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      live_websites:
+        description: 'Probe real sites on API 35 (site availability and emulator stability can vary)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -94,7 +99,7 @@ jobs:
           profile: pixel_c
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: bash .github/scripts/device-tests.sh
+          script: LIVE_WEBSITES=${{ inputs.live_websites || false }} bash .github/scripts/device-tests.sh
       - name: Upload device test reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -4,6 +4,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -13,6 +15,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -139,7 +144,11 @@ fun SearchScreen(search: SearchSnapshot, screen: ScreenState, vm: OpenTabsViewMo
 
 @Composable
 private fun TitleSearch(screen: ScreenState, vm: OpenTabsViewModel, modifier: Modifier) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
     OutlinedTextField(screen.query, vm::setQuery, modifier, label = { Text("Title or keywords") }, singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { keyboard?.hide(); focus.clearFocus(); vm.refreshSearch() }),
         leadingIcon = { Icon(Icons.Default.Search, null) }, trailingIcon = {
             if (screen.query.isNotEmpty()) IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Default.Close, "Clear title search") }
         })
@@ -147,6 +156,10 @@ private fun TitleSearch(screen: ScreenState, vm: OpenTabsViewModel, modifier: Mo
 
 @Composable
 private fun ArtistSearch(screen: ScreenState, vm: OpenTabsViewModel, modifier: Modifier) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
     OutlinedTextField(screen.artistQuery, vm::setArtistQuery, modifier, label = { Text("Artist (optional)") }, singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { keyboard?.hide(); focus.clearFocus(); vm.refreshSearch() }),
         trailingIcon = { if (screen.artistQuery.isNotEmpty()) IconButton(onClick = { vm.setArtistQuery("") }) { Icon(Icons.Default.Close, "Clear artist search") } })
 }

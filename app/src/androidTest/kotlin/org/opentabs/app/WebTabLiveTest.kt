@@ -9,6 +9,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.filters.SdkSuppress
 import java.io.File
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.opentabs.core.*
@@ -17,6 +19,10 @@ import org.opentabs.core.*
 @SdkSuppress(minSdkVersion = 35)
 class WebTabLiveTest {
     @get:Rule val compose = createComposeRule()
+    @Before fun optInToLiveWebsites() {
+        assumeTrue("Real websites are opt-in; deterministic WebView regressions run on every push.",
+            InstrumentationRegistry.getArguments().getString("liveWebsites") == "true")
+    }
 
     @Test fun songsterrRealWebsiteOrExplicitFallback() = probe(WebTabSource.SONGSTERR)
     @Test fun ultimateGuitarRealWebsiteOrExplicitFallback() = probe(WebTabSource.ULTIMATE_GUITAR)
