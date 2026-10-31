@@ -2,7 +2,7 @@
 
 Version 0.3 adds an optional Compose `AndroidView` browser screen for ordinary Songsterr and Ultimate Guitar website navigation. `WebTabRequest` / `WebTabUrls` define search routes and top-level navigation policy; the screen-owned `WebTabController` manages one WebView and its lifecycle. A bounded `WebTabMemory` retains navigation data, never a View or Activity. Existing native providers, repository, decoder, Spotify boundary, and voice commands are preserved. See [WEB_BROWSER.md](WEB_BROWSER.md).
 
-Version 0.2 adds the independently implemented `TabSearchProvider` search/retrieval model, concurrent coordinator, HTTP/caching layer, MusicBrainz metadata adapter, TabForge CC0 source, and streaming GP7 position-preview decoder. See [provider research and implementation limits](PROVIDERS.md) for the current rights matrix and native format support. Spotify and music-recognition boundaries below remain optional and unconfigured.
+Version 0.3.1 reuses the Songsterr / Ultimate Guitar browser from v0.3 and simplifies Search to direct tab discovery. The former metadata adapters, merged coordinator, and native online download/cache pipeline have been removed. The streaming GP7 import decoder and existing saved-tab attribution remain. See [sources and native format limits](PROVIDERS.md). Spotify and music-recognition boundaries below remain optional and unconfigured.
 
 ## Offline application
 
@@ -14,9 +14,9 @@ The Android ViewModel separates screen state, persistent library state, transien
 
 `PlainTextTabDecoder` validates text imports and the final native preview. `GuitarProPreview` now reads a bounded ZIP/GPIF score into typed track, bar, voice, beat, and authored string/fret records. It converts supported six-string arrangements into labeled text position previews for the same viewer. Full score engraving, repeat interpretation, expressive-technique rendering, and MusicXML parsing remain unimplemented; see the explicit limits in PROVIDERS.md.
 
-## Authorized external tab search
+## Direct tab website search
 
-`TabSearchProvider` declares source identity, availability, online/offline operation, a suspending search function, and an explicitly separate retrieval function. `LocalTabSearchProvider` searches repository metadata; `MusicBrainzProvider` returns metadata only; `TabForgeProvider` supplies the author's reviewed CC0 demo arrangements. `UnifiedTabSearch` isolates failures, bounds concurrency, emits partial results, and applies deadlines. Rights default to denied, and the repository revalidates content before saving a permitted offline copy with provenance. Future providers must establish a documented API and rights for display/cache/save independently. Songsterr and Ultimate Guitar remain unconnected; there are no guessed private URLs or scraping fallbacks.
+`SearchScreen` collects song title, artist, and a `WebTabSource`. Submitting delegates to the existing `OpenTabsViewModel.browse` / `WebTabRequest` path. Only Songsterr and Ultimate Guitar public search pages are connected. Their original result lists and supported tab pages render through the existing `WebTabController` / `WebTabScreen`; secure URLs, lifecycle, performance controls, and external fallback are retained. There is no background metadata lookup, merged metadata result list, or additional online catalog. My Tabs retains native local search. Existing serialized provenance and imported GP7 track tags are preserved separately from discovery code. See [the history audit](SEARCH_SIMPLIFICATION.md) and [WebView details](WEB_BROWSER.md).
 
 ## Spotify
 

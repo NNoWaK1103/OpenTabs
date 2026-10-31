@@ -1,12 +1,12 @@
-# Embedded tab browsing — OpenTabs 0.3
+# Embedded tab browsing — OpenTabs 0.3.1
 
 Songsterr and Ultimate Guitar are selectable website sources inside the existing Compose app. This is ordinary website browsing in Android's installed System WebView. It does not add an unofficial tab API, copy proprietary tab bodies into the local library, or change the websites' content or entitlements.
 
 ## Use
 
-1. In Search, enter a title and optionally an artist.
-2. Native saved tabs and authorized CC0 arrangements remain the default results and open in the existing six-line viewer.
-3. Under **Website results**, select **Songsterr** or **Ultimate Guitar**. The website renders its own search results inside OpenTabs, with a persistent source label and current HTTPS address. Select a result on that page to open its tab.
+1. In Search, enter a song title, an artist, or both.
+2. Select **Songsterr** or **Ultimate Guitar** and press **Find tabs** or the keyboard Search key. My Tabs remains available separately for saved six-line content.
+3. The website renders its own search results inside OpenTabs, with a persistent source label and current HTTPS address. Select a result on that page to open its tab. No metadata-only song cards or other online catalogs are shown.
 4. Use the browser toolbar for Back, Forward, Refresh/Stop, Zoom, Full screen, Screen awake, and Open in browser. Source switching repeats the same original title/artist search on the other website.
 5. **Native tabs** returns to the existing search screen. Android Back first exits full-screen mode, then navigates website history, then returns to native Search.
 
@@ -39,11 +39,11 @@ Website scripts and ads can consume substantially more resources than native tex
 - File/content access, file-origin universal access, mixed content, and automatic JavaScript popups are disabled. There is no JavaScript interface exposing app storage or native functionality.
 - Platform Safe Browsing remains enabled. Certificate failures are never bypassed. Camera, microphone, and geolocation requests from websites are denied; the native optional voice-command activity remains separate.
 - Normal page resources, third-party frames, ads, and site scripts are delivered by WebView. Only top-level navigation is constrained; no provider content is harvested through `shouldInterceptRequest` in production.
-- System WebView owns its normal browser cache and cookies. These are separate from the existing licensed native-response cache and saved tab library. The app does not export website pages as offline native tabs or represent its browser cache as redistribution permission.
+- System WebView owns its normal browser cache and cookies, separately from the saved tab library. The app does not export website pages as offline native tabs or represent its browser cache as redistribution permission. The former native HTTP discovery/cache pipeline has been removed.
 
 ## Validation
 
-JVM tests cover URL construction, title/artist encoding, source switching, trusted-host validation, unsafe schemes, external fallback, and error/restriction states. Instrumentation tests use the real System WebView with clearly named test-only HTTPS fixtures to exercise page links, Back/Forward/Refresh, switching sources, error banners, renderer recovery, and view destruction. Test interception is never passed to the production controller. Existing native search and licensed-arrangement smoke tests remain in the API 26 / API 35 matrix.
+JVM tests cover URL construction, title/artist encoding, source switching, trusted-host validation, unsafe schemes, external fallback, and error/restriction states. Instrumentation tests submit the actual form through its ViewModel for both sources, follow fixture tab links, test voice/keyboard search, and use the real System WebView to exercise Back/Forward/Refresh, switching sources, error banners, renderer recovery, and view destruction. Test interception is never passed to the production controller. Native library opening and the six-line viewer remain covered in the API 26 / API 35 matrix; GP7 import and saved provenance are tested independently.
 
 Separate real-website probes load both public search pages with the genuine WebView configuration. They record the returned title/address and any HTTP/network restriction, and verify that an explicit external fallback is present. A blocked third-party page is an expected website outcome, not reported as a successful tablature load. Optional live-page screenshots are included with device reports for visual inspection. Probe success validates navigation/fallback handling, not paid-feature access or universal website compatibility.
 

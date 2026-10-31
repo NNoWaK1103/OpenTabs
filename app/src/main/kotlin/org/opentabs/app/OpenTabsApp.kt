@@ -38,7 +38,6 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
     val library by vm.library.collectAsStateWithLifecycle()
     val screen by vm.screen.collectAsStateWithLifecycle()
     val document by vm.document.collectAsStateWithLifecycle()
-    val search by vm.search.collectAsStateWithLifecycle()
     val guitarProImport by vm.guitarProImport.collectAsStateWithLifecycle()
     val snackbars = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -169,7 +168,8 @@ fun OpenTabsApp(vm: OpenTabsViewModel = viewModel()) = OpenTabsTheme {
                                 { enabled -> vm.settings { it.copy(keepAwake = enabled) } }, vm::notify)
                             else when (screen.destination) {
                                 Destination.NOW_PLAYING -> TabViewer(library, screen, document, vm)
-                                Destination.SEARCH -> SearchScreen(search, screen, vm)
+                                Destination.SEARCH -> SearchScreen(screen, vm::setQuery, vm::setArtistQuery,
+                                    vm::selectTabSource, vm::searchTabs, { vm.navigate(Destination.LIBRARY) })
                                 Destination.LIBRARY, Destination.PRACTICE -> LibraryScreen(library, screen, vm)
                                 Destination.SETTINGS -> SettingsScreen(library.settings, vm)
                             }

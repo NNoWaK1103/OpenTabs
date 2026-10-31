@@ -8,5 +8,5 @@ https://creativecommons.org/publicdomain/zero/1.0/
 
 The upstream README and the embedded GPIF Score/Copyright and Instructions
 explicitly identify this original score as CC0. The fixture is test-only;
-the production app retrieves the actual online source when requested.
+the production app does not retrieve this source or bundle this fixture.
 No TabForge software source was copied.
