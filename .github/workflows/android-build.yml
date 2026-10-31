@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/ios-kmp-foundation]
   pull_request:
   workflow_dispatch:
 

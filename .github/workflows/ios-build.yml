@@ -1,0 +1,67 @@
+name: iOS foundation
+
+on:
+  push:
+    branches: [main, feature/ios-kmp-foundation]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.app/Contents/Developer
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Configure Gradle cache and validate wrapper
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Check out pinned XcodeGen 2.44.1
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: yonaskolb/XcodeGen
+          ref: 21ac9944b0ab546a07422dbed86f33dd2ebd76f8
+          path: .tools/XcodeGen
+          persist-credentials: false
+      - name: Generate native Xcode project
+        run: |
+          xcodebuild -version
+          swift build --package-path .tools/XcodeGen -c release --product xcodegen
+          .tools/XcodeGen/.build/release/xcodegen generate --spec iosApp/project.yml
+      - name: Run shared JVM and native tests and compile device framework
+        run: |
+          if [ "$(uname -m)" = arm64 ]; then
+            native_test=iosSimulatorArm64Test
+          else
+            native_test=iosX64Test
+          fi
+          ./gradlew :core:test ":core:$native_test" :core:linkDebugFrameworkIosArm64 -PiosOnly=true --no-daemon --stacktrace
+      - name: Build and smoke test SwiftUI app on simulator
+        run: bash .github/scripts/ios-tests.sh
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: OpenTabs-iOS-validation
+          path: |
+            core/build/reports/tests/
+            iosApp/TestResults.xcresult
+          if-no-files-found: warn
+          retention-days: 14
