@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
 import org.opentabs.core.*
 
 enum class Destination(val label: String) {
-    NOW_PLAYING("Now Playing"), SEARCH("Search"), LIBRARY("My Tabs"), PRACTICE("Practice"), SETTINGS("Settings")
+    NOW_PLAYING("Now Playing"), SEARCH("Search"), LIBRARY("My Tabs"), PRACTICE("Practice"), TUNER("Tuner"), SETTINGS("Settings")
 }
 
 enum class LibraryFilter(val label: String) { ALL("All tabs"), FAVORITES("Favorites"), RECENT("Recent") }
@@ -37,6 +37,8 @@ data class ScreenState(
     val artistQuery: String = "",
     val tabSource: WebTabSource = WebTabSource.SONGSTERR,
     val webTab: WebTabRequest? = null,
+    val tunerReturnDestination: Destination = Destination.NOW_PLAYING,
+    val tunerTab: WebTabRequest? = null,
 )
 
 data class DocumentState(val songId: String? = null, val tab: TabDocument? = null, val error: String? = null)
@@ -52,6 +54,7 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     private val mutableGuitarProImport = MutableStateFlow<GuitarProImport?>(null)
     val guitarProImport = mutableGuitarProImport.asStateFlow()
     val webTabMemory = WebTabMemory()
+    val tunerMemory = TunerMemory()
     private var webRevision = 0L
     private val notifications = Channel<String>(Channel.BUFFERED)
     val messages = notifications.receiveAsFlow()
@@ -98,8 +101,20 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
 
     fun notify(message: String) { notifications.trySend(message) }
     fun navigate(destination: Destination) {
-        mutableScreen.value = screen.value.copy(destination = destination, scrolling = false, fullScreen = false, webTab = null)
+        val current = screen.value
+        if (destination == Destination.TUNER) {
+            if (current.destination == Destination.TUNER) return
+            mutableScreen.value = current.copy(destination = destination, scrolling = false, fullScreen = false,
+                tunerReturnDestination = current.destination, tunerTab = current.webTab, webTab = null)
+        } else {
+            val restore = current.tunerTab.takeIf {
+                current.destination == Destination.TUNER && destination == current.tunerReturnDestination
+            }
+            mutableScreen.value = current.copy(destination = destination, scrolling = false, fullScreen = false,
+                webTab = restore, tunerTab = null)
+        }
     }
+    fun closeTuner() { navigate(screen.value.tunerReturnDestination) }
     fun setQuery(query: String) {
         mutableScreen.value = screen.value.copy(query = query.take(160))
     }
@@ -192,7 +207,7 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
             is VoiceCommand.Find -> {
                 val original = Regex("(?i)^(?:find tabs for|search for|find) (.+?) by (.+?)[.!?]*$").matchEntire(text.trim())
                 mutableScreen.value = screen.value.copy(query = original?.groupValues?.get(1) ?: command.query,
-                    artistQuery = original?.groupValues?.get(2).orEmpty())
+                    artistQuery = original?.groupValues?.get(2).orEmpty(), tunerTab = null)
                 navigate(Destination.SEARCH)
             }
             VoiceCommand.Favorites -> { setQuery(""); filter(LibraryFilter.FAVORITES); navigate(Destination.LIBRARY) }
