@@ -10,11 +10,14 @@ class AppSmokeTest {
 
     @Test fun launchesAndSearchesOriginalExercises() {
         compose.waitUntil(timeoutMillis = 15_000) {
-            compose.onAllNodesWithText("First steps").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithContentDescription("Search local tabs").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithContentDescription("Search local tabs").performClick()
         compose.onNodeWithText("Search local tabs").performTextInput("Evening")
         compose.onNodeWithText("Evening arpeggios").assertIsDisplayed().performClick()
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodesWithText("NOW PLAYING · LOCAL TAB").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithText("NOW PLAYING · LOCAL TAB").assertIsDisplayed()
         compose.onNodeWithText("Auto-scroll").assertIsDisplayed()
     }

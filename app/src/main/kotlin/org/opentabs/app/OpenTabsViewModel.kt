@@ -139,8 +139,8 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     fun voice(text: String) {
         when (val command = VoiceCommandParser.parse(text)) {
             is VoiceCommand.Find -> { setQuery(command.query); navigate(Destination.SEARCH) }
-            VoiceCommand.Favorites -> { filter(LibraryFilter.FAVORITES); navigate(Destination.LIBRARY) }
-            VoiceCommand.Practice -> navigate(Destination.PRACTICE)
+            VoiceCommand.Favorites -> { setQuery(""); filter(LibraryFilter.FAVORITES); navigate(Destination.LIBRARY) }
+            VoiceCommand.Practice -> { setQuery(""); navigate(Destination.PRACTICE) }
             VoiceCommand.StartScroll -> { navigate(Destination.NOW_PLAYING); scroll(true) }
             VoiceCommand.StopScroll -> scroll(false)
             VoiceCommand.IncreaseSize -> settings { it.copy(fontSize = it.fontSize + 2) }

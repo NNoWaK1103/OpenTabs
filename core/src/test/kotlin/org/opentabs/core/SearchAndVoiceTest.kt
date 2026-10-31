@@ -48,7 +48,9 @@ class SearchAndVoiceTest {
     }
 
     @Test fun `unconfigured providers explicitly return unavailable`() = runTest {
-        assertTrue(UnconfiguredSpotifyProvider().connect() is Availability.Unavailable)
-        assertTrue(UnconfiguredRecognitionProvider().recognize() is RecognitionResult.Unavailable)
+        val spotify: NowPlayingProvider = UnconfiguredSpotifyProvider()
+        val recognition: MusicRecognitionProvider = UnconfiguredRecognitionProvider()
+        assertTrue(spotify.connect() is Availability.Unavailable)
+        assertTrue(recognition.recognize() is RecognitionResult.Unavailable)
     }
 }
