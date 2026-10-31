@@ -62,6 +62,8 @@ Common ASCII tab techniques (`h`, `p`, `/`, `\`, `b`, `r`, `x`, `~`) are display
 
 GitHub Actions builds automatically on pushes to `main`, on pull requests, and manually with **Run workflow**. No signing secrets or external-service credentials are needed. The workflow installs JDK 17 and Android SDK 35, validates the Gradle wrapper, caches Gradle, runs core tests and Android lint, compiles the app and instrumentation tests, and uploads the debug APK and reports. Action versions are pinned to verified immutable commits; wrapper downloads have a pinned SHA-256.
 
+After the build job, two tablet emulator jobs run the Compose smoke test on API 26 and API 35, covering the minimum and target Android versions. Their reports are uploaded separately. The APK artifact is uploaded by the build job before device tests run.
+
 For a local build, install JDK 17 and the Android command-line SDK. Set `JAVA_HOME` and `ANDROID_HOME`, then run:
 
 ```sh
