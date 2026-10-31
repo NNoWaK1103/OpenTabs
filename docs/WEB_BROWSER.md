@@ -47,6 +47,8 @@ JVM tests cover URL construction, title/artist encoding, source switching, trust
 
 Separate real-website probes load both public search pages with the genuine WebView configuration. They record the returned title/address and any HTTP/network restriction, and verify that an explicit external fallback is present. A blocked third-party page is an expected website outcome, not reported as a successful tablature load. Optional live-page screenshots are included with device reports for visual inspection. Probe success validates navigation/fallback handling, not paid-feature access or universal website compatibility.
 
+The live probes run on the API 35 emulator; the stock API 26 emulator's old WebView stalled on modern live pages. API 26 continues to run the native regression tests and deterministic real-WebView navigation/recovery fixtures. This does not restrict production browsing by Android version: an Android 8.0 device with an updated WebView may behave differently from that old emulator. Physical Meswao performance and site compatibility remain to be checked; keep System WebView updated or use the external browser when needed.
+
 References:
 
 - [Compose AndroidView interoperability and release callbacks](https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/views-in-compose)

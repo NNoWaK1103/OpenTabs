@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.filters.SdkSuppress
 import java.io.File
 import org.junit.Assert.*
 import org.junit.Rule
@@ -14,6 +15,7 @@ import org.junit.Test
 import org.opentabs.core.*
 
 /** Real website probes. Restrictions/offline errors must remain visible and offer browser fallback. */
+@SdkSuppress(minSdkVersion = 35)
 class WebTabLiveTest {
     @get:Rule val compose = createComposeRule()
 
