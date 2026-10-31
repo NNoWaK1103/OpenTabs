@@ -3,7 +3,6 @@ package org.opentabs.app
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -41,9 +40,11 @@ class WebTabLiveTest {
         if (state.failure?.coversPage == true) compose.onNodeWithText("Website unavailable").assertIsDisplayed()
         // Optional visual evidence of the real page/restriction; capture failure does not disguise page status.
         runCatching {
-            val image = compose.onRoot().captureToImage().asAndroidBitmap()
+            val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                ?: error("System screenshot unavailable")
             val folder = InstrumentationRegistry.getInstrumentation().targetContext.cacheDir
             File(folder, "webview-${source.name.lowercase()}.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            image.recycle()
         }.onFailure { Log.i("OpenTabsLiveWeb", "Screenshot unavailable: ${it.javaClass.simpleName}") }
         compose.runOnIdle { browser.stop() }
     }
