@@ -10,6 +10,14 @@ The existing `src/main/kotlin`, `src/test/kotlin`, and test resources explicitly
 
 Kotlin/serialization/Compose compiler plugins move together from 2.1.20 to 2.2.21 to support Xcode 26.0 with the existing AGP and Gradle versions. Android dependencies and SDK levels are unchanged. Compatibility references: [Kotlin's compatibility matrix](https://kotlinlang.org/docs/multiplatform/multiplatform-compatibility-guide.html), [direct Xcode framework integration](https://kotlinlang.org/docs/multiplatform/multiplatform-direct-integration.html).
 
+## Install on your own iPhone with fewer local tools
+
+The iOS workflow produces an **OpenTabs-iPhone-Test** artifact containing a generated Xcode project, Swift sources, and the prebuilt ARM64 device framework. Download the artifact from a successful [iOS foundation run](https://github.com/NNoWaK1103/OpenTabs/actions/workflows/ios-build.yml), unzip the download and the inner `OpenTabs-iPhone-Test.zip`, then follow `START-HERE.txt` in the extracted folder. GitHub requires sign-in to download workflow artifacts.
+
+Only Xcode and an Apple account are needed on the tester's Mac; Java, Gradle, and XcodeGen stay in CI. Select a Personal Team, a unique bundle identifier, and the connected iPhone, then Run. This is a device-only package, not a simulator project or a signed installer. The framework is static and linked into the app. The CI job builds the exact packaged project unsigned for a generic iOS device before uploading it. SwiftUI build/signing on newer Xcode versions still needs verification on that Mac; prebuilding the framework avoids running the older Kotlin/Native compiler against the newer SDK locally.
+
+The normal repository project below retains direct Kotlin integration for development. The testing package is a snapshot of one commit, recorded in `SOURCE-REVISION.txt`; download a new package after shared-code updates. This change does not select a project license or configure App Store distribution.
+
 ## Run on a Mac
 
 Requirements: JDK 17, Xcode 26.0 (26.0.1 is the compatible patch on the hosted image), an installed iOS simulator runtime, and XcodeGen 2.44.1. CI uses macOS 15 and pins XcodeGen source at `21ac9944b0ab546a07422dbed86f33dd2ebd76f8`. Hosted-image inventory changes over time; update the explicit Xcode selection and Kotlin together when retiring that toolchain.

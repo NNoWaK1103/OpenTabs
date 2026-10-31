@@ -53,6 +53,15 @@ jobs:
             native_test=iosX64Test
           fi
           ./gradlew :core:test ":core:$native_test" :core:linkDebugFrameworkIosArm64 -PiosOnly=true --no-daemon --stacktrace
+      - name: Prepare and verify downloadable iPhone project
+        run: bash .github/scripts/package-iphone-project.sh .tools/XcodeGen/.build/release/xcodegen
+      - name: Upload iPhone testing project
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: OpenTabs-iPhone-Test
+          path: build/iphone-test-package/OpenTabs-iPhone-Test.zip
+          if-no-files-found: error
+          retention-days: 14
       - name: Build and smoke test SwiftUI app on simulator
         run: bash .github/scripts/ios-tests.sh
       - name: Upload test reports
