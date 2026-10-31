@@ -3,7 +3,10 @@ package org.opentabs.app
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebResourceRequest
+import android.net.Uri
 import androidx.compose.material3.Text
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -21,7 +24,7 @@ class WebTabBrowserTest {
         webViewFactory = factory ?: { WebView(it) }, interceptForTests = { request ->
             val page = if (request.url.path.orEmpty().contains("open-tabs-test-tab")) "Fixture tab page" else "Fixture search results"
             val html = """<!doctype html><html><head><title>$page</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-                <body><h1>OpenTabs browser TEST FIXTURE</h1><p>$page</p><a id="tab" href="/a/wsa/open-tabs-test-tab-s1">Open fixture exercise</a>
+                <body><h1>OpenTabs browser TEST FIXTURE</h1><p>$page</p><a id="tab" style="position:absolute;top:0;left:0;width:100%;height:60px;background:white;z-index:2" href="/a/wsa/open-tabs-test-tab-s1">Open fixture exercise</a>
                 <a id="external" href="https://example.org/sign-in">External fixture link</a></body></html>"""
             WebResourceResponse("text/html", "UTF-8", status, if (status == 200) "OK" else "Forbidden",
                 emptyMap(), html.byteInputStream())
@@ -47,11 +50,14 @@ class WebTabBrowserTest {
         compose.runOnIdle {
             assertFalse(browser.webView!!.settings.allowFileAccess)
             assertFalse(browser.webView!!.settings.allowContentAccess)
-            browser.webView!!.evaluateJavascript("document.getElementById('tab').click()", null)
         }
+        // A genuine input event creates normal user-initiated history. Scripted clicks can be treated as redirects.
+        compose.onNodeWithContentDescription("Embedded tab website").performTouchInput { click(Offset(24f, 24f)) }
         waitLoaded(browser) { it.contains("open-tabs-test-tab") }
+        compose.waitUntil(10_000) { browser.state.value.canBack }
         compose.onNodeWithContentDescription("Back in website").assertIsEnabled().performClick()
         waitLoaded(browser) { it == request.url }
+        compose.waitUntil(10_000) { browser.state.value.canForward }
         compose.onNodeWithContentDescription("Forward in website").assertIsEnabled().performClick()
         waitLoaded(browser) { it.contains("open-tabs-test-tab") }
         compose.onNodeWithContentDescription("Refresh website").performClick()
@@ -81,6 +87,21 @@ class WebTabBrowserTest {
         val request = WebTabRequest(WebTabSource.ULTIMATE_GUITAR, "Study", "Bach", 1)
         compose.setContent { OpenTabsTheme { WebTabScreen(request, memory, false, false, {}, {}, {}, {}, {}, browser) } }
         waitLoaded(browser)
+        // Intercepted responses do not consistently emit Chromium's HTTP-error callback.
+        // Exercise that platform callback explicitly while keeping the delivered fixture visible.
+        compose.runOnIdle {
+            val view = browser.webView!!
+            val mainRequest = object : WebResourceRequest {
+                override fun getUrl() = Uri.parse(browser.state.value.url)
+                override fun isForMainFrame() = true
+                override fun isRedirect() = false
+                override fun hasGesture() = false
+                override fun getMethod() = "GET"
+                override fun getRequestHeaders() = emptyMap<String, String>()
+            }
+            view.webViewClient.onReceivedHttpError(view, mainRequest,
+                WebResourceResponse("text/html", "UTF-8", 403, "Forbidden", emptyMap(), "TEST FIXTURE".byteInputStream()))
+        }
         compose.waitUntil(10_000) { browser.state.value.failure?.kind == WebFailureKind.HTTP }
         compose.runOnIdle { assertFalse(browser.state.value.failure!!.coversPage); assertNotNull(browser.webView) }
         compose.onNode(hasText("HTTP 403", substring = true)).assertIsDisplayed()

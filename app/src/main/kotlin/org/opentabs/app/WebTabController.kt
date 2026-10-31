@@ -79,9 +79,11 @@ class WebTabController(
             view.webChromeClient = object : WebChromeClient() {
                 override fun onProgressChanged(view: WebView, progress: Int) {
                     if (webView === view) update { it.copy(progress = progress.coerceIn(0, 100)) }
+                    if (progress == 100) view.post { navigationState(view) }
                 }
                 override fun onReceivedTitle(view: WebView, title: String?) {
                     if (webView === view) update { it.copy(title = title.orEmpty().take(180)) }
+                    view.post { navigationState(view) }
                 }
                 override fun onPermissionRequest(request: PermissionRequest) { request.deny() }
                 override fun onGeolocationPermissionsShowPrompt(origin: String?, callback: GeolocationPermissions.Callback) {
@@ -233,17 +235,23 @@ class WebTabController(
             if (webView !== view) return
             if (url != null && WebTabUrls.source(url) != null) update { it.copy(url = url) }
             navigationState(view)
+            view.post { navigationState(view) }
         }
         override fun onPageFinished(view: WebView, url: String?) {
             if (webView !== view) return
+            if (!currentPage(url)) return
             update { it.copy(loading = false, progress = 100, slow = false) }
             navigationState(view)
+            view.post { navigationState(view) }
         }
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-            if (webView === view && request.isForMainFrame) update { it.copy(loading = false, failure = WebFailure.network()) }
+            if (webView === view && request.isForMainFrame && currentPage(request.url.toString())) update {
+                it.copy(loading = false, failure = if (error.errorCode == ERROR_FAILED_SSL_HANDSHAKE || it.failure?.kind == WebFailureKind.TLS)
+                    WebFailure.tls() else WebFailure.network())
+            }
         }
         override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
-            if (webView === view && request.isForMainFrame) update { it.copy(failure = WebFailure.http(response.statusCode)) }
+            if (webView === view && request.isForMainFrame && currentPage(request.url.toString())) update { it.copy(failure = WebFailure.http(response.statusCode)) }
         }
         override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
             handler.cancel()
@@ -268,5 +276,6 @@ class WebTabController(
     private fun navigationState(view: WebView) {
         if (webView === view) update { it.copy(canBack = view.canGoBack(), canForward = view.canGoForward()) }
     }
+    private fun currentPage(url: String?) = url != null && url.substringBefore('#') == state.value.url.substringBefore('#')
     private fun update(transform: (WebTabUi) -> WebTabUi) { mutableState.value = transform(state.value) }
 }
