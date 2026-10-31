@@ -49,7 +49,7 @@ class TunerTest {
         loaded()
     }
     private fun loaded() { compose.waitUntil(20_000) {
-        tuner.webView != null && !tuner.state.value.loading && tuner.state.value.progress == 100
+        ::tuner.isInitialized && tuner.webView != null && !tuner.state.value.loading && tuner.state.value.progress == 100
     } }
     private class Request(origin: String = TunerUrls.HOME,
         private val wanted: Array<String> = arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) : PermissionRequest() {
@@ -128,12 +128,14 @@ class TunerTest {
             tuner.webView!!.webChromeClient!!.onPermissionRequest(request)
             assertEquals(1, prompts)
         }
+        val previousView = tuner.webView
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
         assertNull(tuner.webView)
         assertTrue(request.denied)
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
         loaded()
         compose.runOnIdle {
+            assertNotSame(previousView, tuner.webView)
             permitted = true
             tuner.androidPermissionResult(true)
             assertNull(request.granted)

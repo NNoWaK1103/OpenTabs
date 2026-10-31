@@ -35,6 +35,7 @@ class TunerController(
     var webView: WebView? = null
         private set
     private var foreground = false
+    private var suspended = false
     private val requests = IdentityHashMap<PermissionRequest, TunerMicrophoneRequest>()
     private val microphone = TunerMicrophoneGate(hasAndroidPermission,
         { foreground && webView != null && state.value.failure == null &&
@@ -149,8 +150,20 @@ class TunerController(
     }
 
     fun androidPermissionResult(granted: Boolean) { microphone.androidResult(granted) }
-    fun resume() { foreground = true; webView?.onResume() }
-    fun pause() { foreground = false; release() }
+    fun resume() {
+        foreground = true
+        if (suspended) {
+            suspended = false
+            // Compose may coalesce stopped/started state before drawing; force a fresh AndroidView host.
+            update { it.copy(generation = it.generation + 1) }
+        }
+        webView?.onResume()
+    }
+    fun pause() {
+        foreground = false
+        if (webView != null) suspended = true
+        release()
+    }
     fun retry() {
         release()
         update { it.copy(failure = null, notice = null, externalLink = null, generation = it.generation + 1) }
