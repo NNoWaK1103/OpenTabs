@@ -41,7 +41,7 @@ class TabForgeProvider(private val http: ProviderHttp) : TabSearchProvider {
                     if (supported) NativeContent.AVAILABLE else NativeContent.UNSUPPORTED,
                     ContentRights(supported, true, supported, "CC0-1.0", LICENSE, "TabForge contributors — Ashen Meridian"),
                     notice = "Original CC0 demo. ${if (payload.stale) "Cached catalog (offline). " else ""}" +
-                        if (supported) "Authored positions; written measures only. Repeats, techniques, and playback are not interpreted."
+                        if (supported) "Authored positions with optional offline practice audio. Written order only; expressive techniques are simplified."
                         else "${track.tuning.size}-string / unsupported arrangement. Native preview supports six-string, single-staff guitar only.")
             }, query)
         }
@@ -52,6 +52,7 @@ class TabForgeProvider(private val http: ProviderHttp) : TabSearchProvider {
         val (score, _) = score()
         val trackId = result.id.removePrefix("ashen-meridian-")
         val document = withContext(Dispatchers.Default) { score.document(trackId) }
-        return AuthorizedTab(result, document)
+        val playback = withContext(Dispatchers.Default) { runCatching { score.practiceScore(trackId) } }
+        return AuthorizedTab(result, document, playback.getOrNull(), playback.exceptionOrNull()?.message?.take(400))
     }
 }

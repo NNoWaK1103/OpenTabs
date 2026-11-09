@@ -35,7 +35,7 @@ import org.opentabs.core.TabDocument
 fun TabViewer(library: LibraryState, screen: ScreenState, document: DocumentState, vm: OpenTabsViewModel) {
     val song = library.songs.firstOrNull { it.id == library.currentSongId }
     if (song == null) {
-        EmptyState("Your next session starts here", "Open a tab from My Tabs, or import a plain-text .txt or .tab file.") {
+        EmptyState("Your next session starts here", "Open My Tabs, or import an authorized .txt, .tab, or GP7 .gp file.") {
             Button(onClick = { vm.navigate(Destination.LIBRARY) }) { Text("Explore My Tabs") }
         }
         return
@@ -127,7 +127,7 @@ private fun ScrollingTab(tab: TabDocument, library: LibraryState, screen: Screen
                 previous = now
                 if (!vertical.canScrollForward) {
                     vm.scroll(false)
-                    vm.notify("End of tab. Use Back to top to play it again.")
+                    vm.notify("End of tab. Use Back to top to scroll again.")
                     break
                 }
                 if (!vertical.isScrollInProgress) vertical.scrollBy(pixelsPerSecond * delta)
@@ -149,6 +149,7 @@ private fun ScrollingTab(tab: TabDocument, library: LibraryState, screen: Screen
                 }
             }
         }
+        PracticeAudioPanel(vm)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Button(onClick = { vm.scroll(!screen.scrolling) }) {
@@ -166,7 +167,7 @@ private fun ScrollingTab(tab: TabDocument, library: LibraryState, screen: Screen
             TextButton(onClick = { vm.settings { it.copy(fontSize = it.fontSize + 2) } }, enabled = settings.fontSize < 32) {
                 Text("A+", Modifier.semantics { contentDescription = "Increase tab size" })
             }
-            Text("Speed", style = MaterialTheme.typography.labelMedium)
+            Text("Scroll speed", style = MaterialTheme.typography.labelMedium)
             IconButton(onClick = { vm.settings { it.copy(scrollSpeed = it.scrollSpeed - 5) } }, enabled = settings.scrollSpeed > 5) {
                 Text("−", Modifier.semantics { contentDescription = "Decrease scrolling speed" })
             }

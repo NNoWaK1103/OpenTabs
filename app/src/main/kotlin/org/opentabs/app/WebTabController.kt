@@ -36,6 +36,7 @@ class WebTabController(
 ) {
     private val mutableState = MutableStateFlow(WebTabUi())
     val state = mutableState.asStateFlow()
+    val downloads = ProviderDownloadController()
     var webView: WebView? = null
         private set
     private var request: WebTabRequest? = null
@@ -90,8 +91,8 @@ class WebTabController(
                     callback.invoke(origin, false, false)
                 }
             }
-            view.setDownloadListener { _, _, _, _, _ ->
-                update { it.copy(notice = "Use Open in browser for website downloads. OpenTabs does not extract or save this website’s tabs.") }
+            view.setDownloadListener { url, userAgent, disposition, mime, length ->
+                if (webView === view) downloads.offer(view.url.orEmpty(), url.orEmpty(), userAgent.orEmpty(), disposition, mime, length)
             }
             host.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             request = initial
@@ -122,6 +123,7 @@ class WebTabController(
         request = next
         if (handledRevision == next.revision) return
         handledRevision = next.revision
+        downloads.cancel()
         memory.clear()
         if (webView == null) {
             update { it.copy(url = next.url) }
@@ -129,7 +131,16 @@ class WebTabController(
         } else load(next.url)
     }
 
+    fun openSavedLink(url: String) {
+        val target = WebsiteBookmarkUrls.canonical(url) ?: return
+        if (webView == null) {
+            update { it.copy(url = target) }
+            retry()
+        } else load(target)
+    }
+
     private fun load(url: String) {
+        downloads.cancel()
         if (WebTabUrls.navigation(url) != WebNavigation.EMBEDDED) {
             update { it.copy(failure = WebFailure(WebFailureKind.UNSAFE, "This address cannot be opened in the embedded viewer.", true), loading = false) }
             return
@@ -141,17 +152,20 @@ class WebTabController(
     fun goBack(): Boolean {
         val view = webView ?: return false
         if (!view.canGoBack()) return false
+        downloads.cancel()
         update { it.copy(failure = null, externalLink = null, notice = null) }
         view.goBack()
         return true
     }
     fun goForward() {
         webView?.takeIf { it.canGoForward() }?.let { view ->
+            downloads.cancel()
             update { it.copy(failure = null, externalLink = null, notice = null) }
             view.goForward()
         }
     }
     fun refresh() {
+        downloads.cancel()
         val view = webView
         if (view == null) retry()
         else if (WebTabUrls.source(view.url.orEmpty()) == null) load(fallbackUrl())
@@ -186,6 +200,7 @@ class WebTabController(
     }
     private fun release(view: WebView, save: Boolean) {
         if (webView !== view) return
+        downloads.cancel()
         if (save) request?.let { current ->
             memory.revision = current.revision
             memory.lastUrl = WebTabUrls.fallback(state.value.url, current)
@@ -227,13 +242,18 @@ class WebTabController(
                     "The page left the supported website. Use Open in browser for external navigation.", true)) }
                 return
             }
+            if (state.value.url != url) downloads.cancel()
             update { it.copy(url = url, loading = true, progress = 0, failure = null, slow = false,
                 externalLink = null, notice = null, pageSerial = it.pageSerial + 1) }
             navigationState(view)
         }
         override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
             if (webView !== view) return
-            if (url != null && WebTabUrls.source(url) != null) update { it.copy(url = url) }
+            if (url != null && WebTabUrls.source(url) != null) {
+                // SPA navigation can leave a tab without onPageStarted. Anchor jumps stay on the same page.
+                if (url.substringBefore('#') != state.value.url.substringBefore('#')) downloads.cancel()
+                update { it.copy(url = url) }
+            }
             navigationState(view)
             view.post { navigationState(view) }
         }

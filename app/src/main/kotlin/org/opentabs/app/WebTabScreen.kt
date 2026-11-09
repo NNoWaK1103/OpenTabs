@@ -26,6 +26,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import java.io.File
 import org.opentabs.core.*
 
 @Composable
@@ -34,12 +37,32 @@ fun WebTabScreen(
     onClose: () -> Unit, onSource: (WebTabSource) -> Unit, onFullScreen: (Boolean) -> Unit,
     onKeepAwake: (Boolean) -> Unit, notify: (String) -> Unit,
     providedController: WebTabController? = null,
+    providedBookmarkRepository: WebsiteBookmarkRepository? = null,
 ) {
     val browser = providedController ?: remember(memory) { WebTabController(memory) }
     val state by browser.state.collectAsStateWithLifecycle()
     val source = WebTabUrls.source(state.url) ?: request.source
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current
+    val bookmarkRepository = providedBookmarkRepository ?: remember { WebsiteBookmarkRepository(File(context.applicationContext.filesDir, "website-links.json")) }
+    val scope = rememberCoroutineScope()
+    var linksOpen by remember { mutableStateOf(false) }
+    var saving by remember { mutableStateOf(false) }
+    fun saveLink() {
+        val url = state.url
+        val title = state.title
+        if (saving) return
+        saving = true
+        scope.launch {
+            try {
+                bookmarkRepository.save(url, title)
+                notify("Saved website link. Internet is required to open it; no tab was downloaded.")
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                notify(error.message ?: "Could not save this website link.")
+            } finally { saving = false }
+        }
+    }
     fun external(url: String = browser.fallbackUrl()) {
         if (!WebTabUrls.safeHttps(url)) { notify("This address cannot be opened safely."); return }
         try {
@@ -66,12 +89,12 @@ fun WebTabScreen(
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null); Text("Native tabs") }
+            TextButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null); Text("Search") }
             WebTabSource.entries.forEach { candidate ->
                 FilterChip(selected = source == candidate, onClick = { onSource(candidate) }, label = { Text(candidate.label) },
                     modifier = Modifier.semantics { contentDescription = "Browse ${candidate.label}" })
             }
-            Text("Website content", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Website · Internet required", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -88,6 +111,8 @@ fun WebTabScreen(
                 modifier = Modifier.semantics { contentDescription = "Zoom website in" }) { Text("+") }
             TextButton(onClick = { onFullScreen(!fullScreen) }) { Text(if (fullScreen) "Exit full screen" else "Full screen") }
             FilterChip(selected = keepAwake, onClick = { onKeepAwake(!keepAwake) }, label = { Text("Screen awake") })
+            TextButton(enabled = !saving && WebsiteBookmarkUrls.canonical(state.url) != null, onClick = ::saveLink) { Text("Save link") }
+            TextButton(onClick = { linksOpen = true }) { Text("Saved links") }
             TextButton(onClick = { external() }) { Text("Open in browser") }
         }
         Text("${source.label} · ${state.title.ifBlank { "Search & tablature" }}", Modifier.padding(horizontal = 16.dp),
@@ -127,4 +152,8 @@ fun WebTabScreen(
             }
         }
     }
+    if (linksOpen) SavedWebsiteLinksDialog(bookmarkRepository,
+        onOpen = { url -> linksOpen = false; browser.openSavedLink(url) },
+        onDismiss = { linksOpen = false }, notify = notify)
+    ProviderDownloadUi(browser.downloads)
 }

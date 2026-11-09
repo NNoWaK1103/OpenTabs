@@ -13,6 +13,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -53,6 +55,9 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     val screen = mutableScreen.asStateFlow()
     private val mutableDocument = MutableStateFlow(DocumentState())
     val document = mutableDocument.asStateFlow()
+    private val documentRefresh = MutableStateFlow(0L)
+    private val audio = PracticePlayback(viewModelScope, { AndroidMidiOutput(application) })
+    val playback = audio.state
     private val mutableSearch = MutableStateFlow(SearchSnapshot())
     val search = mutableSearch.asStateFlow()
     private val mutableGuitarProImport = MutableStateFlow<GuitarProImport?>(null)
@@ -71,13 +76,32 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     init {
         initialize()
         viewModelScope.launch {
-            library.map { it.currentSongId }.distinctUntilChanged().collect { id ->
+            combine(library.map { it.currentSongId }.distinctUntilChanged(), documentRefresh) { id, _ -> id }
+                .collectLatest { id ->
+                // Cancel previous document and MIDI preparation before reading a new selection.
+                audio.load(id, null)
                 mutableDocument.value = DocumentState(songId = id)
                 if (id != null) {
-                    try { mutableDocument.value = DocumentState(id, repository.document(id)) }
-                    catch (error: Exception) {
+                    try {
+                        val tab = repository.document(id)
+                        if (library.value.currentSongId != id) return@collectLatest
+                        mutableDocument.value = DocumentState(id, tab)
+                        try {
+                            val score = repository.practiceScore(id)
+                            if (library.value.currentSongId == id) {
+                                audio.load(id, score, library.value.songs.firstOrNull { it.id == id }?.playbackUnavailableReason)
+                            }
+                        } catch (error: Exception) {
+                            if (error is CancellationException) throw error
+                            if (library.value.currentSongId == id) {
+                                audio.load(id, null, "Saved audio data could not be read. Your text tab is still available. ${error.message.orEmpty()}")
+                            }
+                        }
+                    } catch (error: Exception) {
                         if (error is CancellationException) throw error
-                        mutableDocument.value = DocumentState(id, error = error.message ?: "Cannot read this tab.")
+                        if (library.value.currentSongId == id) {
+                            mutableDocument.value = DocumentState(id, error = error.message ?: "Cannot read this tab.")
+                        }
                     }
                 }
             }
@@ -107,6 +131,7 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
 
     fun notify(message: String) { notifications.trySend(message) }
     fun navigate(destination: Destination) {
+        audio.pause()
         mutableScreen.value = screen.value.copy(destination = destination, scrolling = false, fullScreen = false, webTab = null)
         if (destination == Destination.SEARCH) scheduleSearch(false) else cancelSearch()
     }
@@ -115,6 +140,7 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
         if (screen.value.destination == Destination.SEARCH) scheduleSearch()
     }
     fun browse(source: WebTabSource) {
+        audio.pause()
         cancelSearch()
         val previous = screen.value.webTab
         mutableScreen.value = screen.value.copy(destination = Destination.SEARCH, scrolling = false,
@@ -156,7 +182,9 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
         action {
             try {
                 val song = repository.saveAuthorized(searchEngine.retrieve(result))
+                val reload = library.value.currentSongId == song.id
                 repository.open(song.id)
+                if (reload) documentRefresh.value++
                 navigate(Destination.NOW_PLAYING)
                 notify("Saved ${song.title} for offline practice, with source attribution.")
             } finally { mutableScreen.value = screen.value.copy(downloading = null) }
@@ -170,6 +198,7 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun open(song: Song) {
+        audio.pause()
         scroll(false)
         opening?.cancel()
         opening = action {
@@ -220,15 +249,29 @@ class OpenTabsViewModel(application: Application) : AndroidViewModel(application
         mutableScreen.value = screen.value.copy(importing = true)
         action {
             try {
-                val tab = withContext(Dispatchers.Default) { pending.score.document(track.id) }
-                val title = "${pending.score.title} · ${track.name}"
-                val song = repository.importTab("$title.txt", tab.lines.joinToString("\n").byteInputStream())
-                repository.edit(song.id, title, pending.score.artist, tuningLabel(track.tuning), "GP7 position preview")
+                val song = repository.importGuitarPro(pending.score, track.id)
                 repository.open(song.id)
                 navigate(Destination.NOW_PLAYING)
-                notify("Imported authored positions. Written measures only; repeats, techniques, and playback are not interpreted.")
+                notify(if (song.playbackUnavailableReason == null)
+                    "Saved positions and written-order MIDI audio for offline practice."
+                else "Saved positions. Timed audio is unavailable for this arrangement; see its playback details.")
             } finally { mutableScreen.value = screen.value.copy(importing = false) }
         }
+    }
+
+    fun toggleAudio() {
+        if (screen.value.destination == Destination.NOW_PLAYING && screen.value.webTab == null) audio.toggle()
+    }
+    fun stopAudio() = audio.stop()
+    fun seekAudio(positionMillis: Long) = audio.seekTo(positionMillis)
+    fun audioSpeed(speed: Double) = audio.setSpeed(speed)
+    fun loopAudio(enabled: Boolean) = audio.setLoop(enabled)
+    fun retryAudio() = audio.retry()
+    fun pausePractice() { scroll(false); audio.pause() }
+
+    override fun onCleared() {
+        audio.release()
+        super.onCleared()
     }
 
     fun voice(text: String) {

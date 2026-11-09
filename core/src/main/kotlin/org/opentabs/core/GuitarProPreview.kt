@@ -9,17 +9,27 @@ import org.xml.sax.SAXException
 import org.xml.sax.ext.DefaultHandler2
 
 data class GuitarTrack(val id: String, val name: String, val tuning: List<Int>, val capo: Int,
-    val tags: Set<ArrangementTag>, internal val barOffset: Int, val staves: Int)
-internal data class GpNote(val string: Int?, val fret: Int?)
-internal data class GpBeat(val notes: List<String>, val rhythm: String)
+    val tags: Set<ArrangementTag>, internal val barOffset: Int, val staves: Int,
+    internal val playbackIssue: String? = null)
+internal data class GpNote(val string: Int?, val fret: Int?, val muted: Boolean = false, val techniques: Boolean = false)
+internal data class GpBeat(val notes: List<String>, val rhythm: String, val grace: Boolean = false, val techniques: Boolean = false)
+internal data class GpRhythm(val value: String, val dots: Int?, val numerator: Int?, val denominator: Int?, val secondaryTuplet: Boolean)
+internal data class GpTempo(val bar: Int?, val position: Double?, val bpm: Double?, val unit: String?, val linear: Boolean)
 
 /** A bounded GP7 ZIP/GPIF reader. Displays authored positions; never invents fingering from pitches. */
 class GuitarProScore internal constructor(
     val title: String, val artist: String, val copyright: String, val tracks: List<GuitarTrack>,
     private val measures: List<Pair<String, List<String>>>,
     private val bars: Map<String, List<String>>, private val voices: Map<String, List<String>>,
-    private val beats: Map<String, GpBeat>, private val notes: Map<String, GpNote>, private val rhythms: Map<String, String>,
+    private val beats: Map<String, GpBeat>, private val notes: Map<String, GpNote>, private val rhythms: Map<String, GpRhythm>,
+    private val tempos: List<GpTempo>, private val anacrusis: Boolean,
 ) {
+    fun practiceScore(trackId: String): PracticeScore {
+        require(!anacrusis) { "Pickup (anacrusis) timing is not supported for audio; the authored tab remains viewable." }
+        return GpPractice.build(title, tracks.firstOrNull { it.id == trackId } ?: error("Unknown arrangement."),
+            measures, bars, voices, beats, notes, rhythms, tempos)
+    }
+
     fun nativeSupported(track: GuitarTrack) = track.tuning.size == 6 && track.staves == 1 &&
         runCatching { document(track.id) }.isSuccess
 
@@ -27,8 +37,8 @@ class GuitarProScore internal constructor(
         val track = tracks.firstOrNull { it.id == trackId } ?: error("Unknown arrangement.")
         require(track.tuning.size == 6 && track.staves == 1) { "Native GP7 preview currently supports single-staff, six-string arrangements only." }
         val lines = mutableListOf(title, "$artist · ${track.name}", copyright, "Tuning: ${tuningLabel(track.tuning)} · Capo ${track.capo}",
-            "GP7 position preview: written measures, not playback notation.",
-            "Repeats, expressive techniques, and timing are not interpreted.", "")
+            "GP7 position preview: written measures; spacing is not rhythmic.",
+            "Audio, when available, is a simplified practice version. Repeats are not expanded.", "")
         var noteCount = 0
         measures.forEachIndexed { index, (time, ids) ->
             val barId = ids.getOrNull(track.barOffset) ?: error("Invalid score bar references.")
@@ -125,8 +135,14 @@ object GuitarProPreview {
         private val voices = mutableMapOf<String, List<String>>()
         private val beats = mutableMapOf<String, GpBeat>()
         private val notes = mutableMapOf<String, GpNote>()
-        private val rhythms = mutableMapOf<String, String>()
-        private val records = mapOf("GPIF" to setOf("Score"), "Tracks" to setOf("Track"),
+        private val rhythms = mutableMapOf<String, GpRhythm>()
+        private val tempos = mutableListOf<GpTempo>()
+        private var anacrusis = false
+        // Reuse effect lookups across the thousands of records in a GPIF score.
+        private val beatEffects = setOf("Arpeggio", "Tremolo", "Whammy", "Ottavia", "Fadding", "DeadSlapped")
+        private val plainNoteProperties = setOf("String", "Fret", "Midi", "ConcertPitch", "TransposedPitch")
+        private val noteEffects = setOf("Tie", "Trill", "Vibrato", "LetRing", "Accent", "AntiAccent")
+        private val records = mapOf("GPIF" to setOf("Score", "MasterTrack"), "Tracks" to setOf("Track"),
             "MasterBars" to setOf("MasterBar"), "Bars" to setOf("Bar"), "Voices" to setOf("Voice"),
             "Beats" to setOf("Beat"), "Notes" to setOf("Note"), "Rhythms" to setOf("Rhythm"))
 
@@ -155,6 +171,14 @@ object GuitarProPreview {
             val id = node.attributes["id"].orEmpty()
             when (node.name) {
                 "Score" -> { title = node.value("Title").take(160); artist = node.value("Artist").take(160); copyright = node.value("Copyright").take(500) }
+                "MasterTrack" -> {
+                    anacrusis = node.child("Anacrusis") != null
+                    node.child("Automations")?.children?.filter { it.value("Type") == "Tempo" }?.forEach { automation ->
+                        val values = automation.list("Value")
+                        tempos += GpTempo(automation.value("Bar").toIntOrNull(), automation.value("Position").toDoubleOrNull(),
+                            values.firstOrNull()?.toDoubleOrNull(), values.getOrNull(1), automation.value("Linear") == "true")
+                    }
+                }
                 "Track" -> {
                     val staves = node.child("Staves")?.children?.filter { it.name == "Staff" }.orEmpty()
                     val staff = staves.firstOrNull()
@@ -169,21 +193,47 @@ object GuitarProPreview {
                         if (name.contains("lead", true)) add(ArrangementTag.LEAD)
                         if (name.contains("rhythm", true)) add(ArrangementTag.RHYTHM)
                     }
-                    tracks += GuitarTrack(id, name, tuning, staff?.property("CapoFret")?.value("Fret")?.toIntOrNull() ?: 0, tags, offset, staves.size)
+                    val capoText = staff?.property("CapoFret")?.value("Fret")
+                    val capo = if (capoText == null) 0 else capoText.toIntOrNull() ?: -1
+                    val partialCapoText = staff?.property("PartialCapoFret")?.value("Fret")
+                    val partialCapo = if (partialCapoText == null) 0 else partialCapoText.toIntOrNull()
+                    tracks += GuitarTrack(id, name, tuning, capo, tags, offset, staves.size,
+                        when (partialCapo) {
+                            null -> "Invalid partial capo for timed playback."
+                            0 -> null
+                            else -> "Partial capos are not supported for timed playback."
+                        })
                     offset += staves.size.coerceAtLeast(1)
                 }
                 "MasterBar" -> measures += node.value("Time") to node.list("Bars")
                 "Bar" -> bars[id] = node.list("Voices")
                 "Voice" -> voices[id] = node.list("Beats")
-                "Beat" -> beats[id] = GpBeat(node.list("Notes"), node.child("Rhythm")?.attributes?.get("ref").orEmpty())
-                "Note" -> notes[id] = GpNote(node.property("String")?.value("String")?.toIntOrNull(), node.property("Fret")?.value("Fret")?.toIntOrNull())
-                "Rhythm" -> rhythms[id] = node.value("NoteValue")
+                "Beat" -> {
+                    beats[id] = GpBeat(node.list("Notes"), node.child("Rhythm")?.attributes?.get("ref").orEmpty(),
+                        node.child("GraceNotes") != null,
+                        node.children.any { it.name in beatEffects })
+                }
+                "Note" -> {
+                    val properties = node.child("Properties")?.children.orEmpty().mapNotNull { it.attributes["name"] }
+                    val muted = "Muted" in properties
+                    val techniques = properties.any { it !in plainNoteProperties } ||
+                        node.children.any { it.name in noteEffects }
+                    notes[id] = GpNote(node.property("String")?.value("String")?.toIntOrNull(),
+                        node.property("Fret")?.value("Fret")?.toIntOrNull(), muted, techniques)
+                }
+                "Rhythm" -> {
+                    val dot = node.child("AugmentationDot")
+                    val tuplet = node.child("PrimaryTuplet")
+                    rhythms[id] = GpRhythm(node.value("NoteValue"), if (dot == null) 0 else dot.attributes["count"]?.toIntOrNull(),
+                        if (tuplet == null) 1 else tuplet.attributes["num"]?.toIntOrNull(),
+                        if (tuplet == null) 1 else tuplet.attributes["den"]?.toIntOrNull(), node.child("SecondaryTuplet") != null)
+                }
             }
         }
         fun result(): GuitarProScore {
             require(title.isNotBlank() && tracks.isNotEmpty() && measures.isNotEmpty()) { "Incomplete GPIF score." }
             require(tracks.size <= 32 && measures.size <= 500 && notes.size <= 25_000) { "Score exceeds native preview limits." }
-            return GuitarProScore(title, artist, copyright, tracks, measures, bars, voices, beats, notes, rhythms)
+            return GuitarProScore(title, artist, copyright, tracks, measures, bars, voices, beats, notes, rhythms, tempos, anacrusis)
         }
     }
 }

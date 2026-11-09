@@ -16,6 +16,7 @@ data class Song(
     val lastOpened: Long = 0,
     val imported: Boolean = true,
     val provenance: Provenance? = null,
+    val playbackUnavailableReason: String? = null,
 )
 
 @Serializable
