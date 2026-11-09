@@ -67,7 +67,8 @@ data class SearchQuery(val title: String, val artist: String = "") {
     val words get() = "$title $artist".trim()
 }
 
-data class AuthorizedTab(val result: TabSearchResult, val document: TabDocument)
+data class AuthorizedTab(val result: TabSearchResult, val document: TabDocument,
+    val practiceScore: PracticeScore? = null, val playbackUnavailableReason: String? = null)
 
 interface TabSearchProvider {
     val id: String

@@ -2,58 +2,54 @@ package org.opentabs.app
 
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.lifecycle.ViewModelProvider
+import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
-import androidx.test.platform.app.InstrumentationRegistry
-import org.opentabs.core.LicensedHttpCache
-import org.opentabs.core.TabForgeProvider
-import java.io.File
-import java.net.URLEncoder
 
+/** The production launch path must expose only the two providers, never a native library. */
 class AppSmokeTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
-    @Test fun launchesAndSearchesOriginalExercises() {
-        compose.waitUntil(timeoutMillis = 15_000) {
-            compose.onAllNodesWithContentDescription("Search tabs").fetchSemanticsNodes().isNotEmpty()
+    @Test fun launchesWithOnlyTheTwoProvidersAndNoNativeSurfaces() {
+        compose.onNodeWithText("OpenTabs").assertIsDisplayed()
+        compose.onNodeWithText("Song or artist").assertIsDisplayed()
+        compose.onNodeWithText("Songsterr", substring = false).assertIsDisplayed()
+        compose.onNodeWithText("Ultimate Guitar", substring = false).assertIsDisplayed()
+        compose.onNodeWithText("Saved links").assertIsDisplayed()
+        listOf("My Tabs", "Practice", "Settings", "Now Playing", "Import", "Native tabs", "Search online",
+            "MusicBrainz", "TabForge", "Spotify", "Shazam", "Evening arpeggios", "Play audio").forEach {
+            compose.onNodeWithText(it, substring = false).assertDoesNotExist()
         }
-        compose.onNodeWithContentDescription("Search tabs").performClick()
-        compose.onNodeWithContentDescription("Search online sources").performClick()
-        compose.onNodeWithText("Title or keywords").performTextInput("Evening")
-        compose.onNodeWithText("Title or keywords").performImeAction()
-        compose.waitUntil(timeoutMillis = 10_000) {
-            compose.onAllNodesWithText("Evening arpeggios").fetchSemanticsNodes().isNotEmpty() &&
-                compose.onAllNodesWithText("Open tab").fetchSemanticsNodes().size == 1
-        }
-        compose.onNodeWithText("Open tab").performClick()
-        compose.waitUntil(timeoutMillis = 10_000) {
-            compose.onAllNodesWithText("NOW PLAYING · LOCAL TAB").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("NOW PLAYING · LOCAL TAB").assertIsDisplayed()
-        compose.onNodeWithText("Auto-scroll").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Microphone and voice commands").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Embedded tab website").assertDoesNotExist()
     }
 
-    @Test fun licensedOnlineArrangementSavesAndOpensInNativeViewer() {
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val cache = LicensedHttpCache(File(instrumentation.targetContext.cacheDir, "licensed-search"))
-        // Deterministic licensed source and empty metadata fixtures; production providers and parser are unchanged.
-        cache.write(TabForgeProvider.URL, instrumentation.context.assets.open("tabforge-ashen-meridian.gp").use { it.readBytes() })
-        val metadataUrl = "https://musicbrainz.org/ws/2/recording/?query=${URLEncoder.encode("(ashen* OR ashen~1) AND (meridian* OR meridian~1)", "UTF-8")}&fmt=json&limit=25"
-        cache.write(metadataUrl, """{"recordings":[]}""".toByteArray())
-        compose.waitUntil(timeoutMillis = 15_000) { compose.onAllNodesWithContentDescription("Search tabs").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithContentDescription("Search tabs").performClick()
-        compose.onNodeWithText("Title or keywords").performTextInput("Ashen Meridian")
-        compose.onNodeWithText("Title or keywords").performImeAction()
-        compose.waitUntil(timeoutMillis = 20_000) {
-            compose.onAllNodesWithContentDescription("Details for Ashen Meridian, Lead Gtr").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithContentDescription("Details for Ashen Meridian, Lead Gtr").performClick()
-        compose.onNodeWithText("Save & open").performClick()
-        compose.waitUntil(timeoutMillis = 20_000) {
-            compose.onAllNodesWithContentDescription("Six-string guitar tablature. Swipe vertically or horizontally to scroll.").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("Source & license").assertIsDisplayed()
-        compose.onAllNodesWithText("Ashen Meridian").onFirst().assertIsDisplayed()
-        compose.onNodeWithText("Auto-scroll").assertIsDisplayed()
+    @Test fun querySurvivesActivityRecreationAndCanBeCleared() {
+        compose.onNodeWithText("Song or artist").performTextInput("Nutshell Alice in Chains")
+        compose.onNodeWithText("Song or artist").performImeAction()
+        compose.onNodeWithText("Search Songsterr").assertIsDisplayed()
+        compose.onNodeWithText("Search Ultimate Guitar").assertIsDisplayed()
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithText("Song or artist").assertTextContains("Nutshell Alice in Chains")
+        compose.onNodeWithContentDescription("Clear search").performClick()
+        compose.onNodeWithText("Browse Songsterr").assertIsDisplayed()
+        compose.onNodeWithText("Browse Ultimate Guitar").assertIsDisplayed()
+        lateinit var vm: ProviderTabsViewModel
+        compose.runOnUiThread { vm = ViewModelProvider(compose.activity)[ProviderTabsViewModel::class.java] }
+        assertEquals("", vm.screen.value.query)
+        assertNull(vm.screen.value.webTab)
+    }
+
+    @Test fun savedLinksAreReachableBeforeOpeningAnyWebsiteAndDoNotClaimOfflineTabs() {
+        compose.onNodeWithText("Saved links").performClick()
+        compose.onNodeWithText("Saved website links").assertIsDisplayed()
+        compose.onNode(hasText("Internet required. These are links", substring = true)).assertIsDisplayed()
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithText("Song or artist").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Embedded tab website").assertDoesNotExist()
+        compose.onNodeWithText("Saved links").performClick()
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithText("Saved website links").assertDoesNotExist()
     }
 }

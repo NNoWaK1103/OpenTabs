@@ -1,4 +1,9 @@
+> Historical note: this document describes the earlier native-library prototype. OpenTabs 0.5 exposes only Songsterr and Ultimate Guitar; native samples, catalogs, lists and import controls are no longer visible. Existing private files are preserved. See [current app behavior](../README.md) and [provider saving](PROVIDER_SAVING.md).
+
 # Architecture and integration boundaries
+
+Version 0.4 adds `PracticeScore`/`PracticeMidi`, a bounded authored-timing GP7 converter, optional private playback sidecars, and original exercise audio. `PracticePlayback` owns the transport state machine; `AndroidMidiOutput` manages Android MediaPlayer, focus, interruption and temporary-file lifetime. Local synthesized audio and text auto-scroll are independent. `WebsiteBookmarkRepository` separately persists canonical online links with cross-instance serialized atomic writes. See [OFFLINE_PRACTICE.md](OFFLINE_PRACTICE.md) for support limits and data migration.
+
 
 Version 0.3 adds an optional Compose `AndroidView` browser screen for ordinary Songsterr and Ultimate Guitar website navigation. `WebTabRequest` / `WebTabUrls` define search routes and top-level navigation policy; the screen-owned `WebTabController` manages one WebView and its lifecycle. A bounded `WebTabMemory` retains navigation data, never a View or Activity. Existing native providers, repository, decoder, Spotify boundary, and voice commands are preserved. See [WEB_BROWSER.md](WEB_BROWSER.md).
 

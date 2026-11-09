@@ -93,7 +93,7 @@ private fun SongRow(song: Song, onOpen: () -> Unit, onFavorite: () -> Unit, onPr
             Column(Modifier.weight(1f)) {
                 Text(song.title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
                 Text(song.artist, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                Text("${song.tuning} · ${song.provenance?.arrangement ?: if (song.imported) "Imported text" else "Original exercise"}${if (song.practice) " · Practice" else ""}",
+                Text("${song.tuning} · ${song.provenance?.arrangement ?: if (song.imported) "Imported tab" else "Original exercise"}${if (song.practice) " · Practice" else ""}",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconToggleButton(checked = song.favorite, onCheckedChange = { onFavorite() }) {

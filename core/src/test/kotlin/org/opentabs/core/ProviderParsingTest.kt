@@ -54,6 +54,7 @@ class ProviderParsingTest {
         val selected = results.first { it.native == NativeContent.AVAILABLE }
         val tab = provider.retrieve(selected)
         assertTrue(tab.document.lines.size > 6)
+        assertNotNull(tab.practiceScore)
         val folder = temp.newFolder()
         val library = LibraryRepository(folder)
         library.initialize()
@@ -70,6 +71,7 @@ class ProviderParsingTest {
         assertEquals(song.id, restarted.saveAuthorized(tab).id)
         assertEquals(4, restarted.state.value.songs.size)
         assertTrue(restarted.document(song.id).lines.size > 6)
+        assertEquals(tab.practiceScore, restarted.practiceScore(song.id))
     }
 
     @Test fun `saving unlicensed content is rejected before files are created`() = runTest {

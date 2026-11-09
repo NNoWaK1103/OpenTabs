@@ -15,6 +15,8 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.opentabs.core.*
+import java.io.File
+import kotlinx.coroutines.runBlocking
 
 class WebTabBrowserTest {
     @get:Rule val compose = createComposeRule()
@@ -34,6 +36,37 @@ class WebTabBrowserTest {
         compose.waitUntil(20_000) { browser.webView != null && expected(browser.state.value.url) && !browser.state.value.loading && browser.state.value.progress == 100 }
     }
 
+    @Test fun savedWebsiteLinksRemainExplicitlyOnlineAndReopenInsideTheApp() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = File.createTempFile("test-web-links-", ".json", context.cacheDir).also { it.delete() }
+        val repository = WebsiteBookmarkRepository(file)
+        val memory = WebTabMemory()
+        val browser = controller(memory)
+        val request = WebTabRequest(WebTabSource.SONGSTERR, "Original exercise", "", 1)
+        val tabUrl = "https://www.songsterr.com/a/wsa/open-tabs-test-tab-s1"
+        try {
+            compose.setContent { OpenTabsTheme {
+                WebTabScreen(request, memory, false, false, {}, {}, {}, {}, {}, browser, repository)
+            } }
+            waitLoaded(browser)
+            compose.onNodeWithText("Save link").performScrollTo().assertIsNotEnabled()
+            compose.runOnIdle { browser.openSavedLink(tabUrl) }
+            waitLoaded(browser) { it == tabUrl }
+            compose.onNodeWithText("Save link").performScrollTo().assertIsEnabled().performClick()
+            compose.waitUntil(10_000) { runBlocking { repository.list().size == 1 } }
+            compose.runOnIdle { browser.goBack() }
+            waitLoaded(browser) { it == request.url }
+            compose.onNodeWithText("Saved links").performScrollTo().performClick()
+            compose.onNode(hasText("Internet required.", substring = true)).assertIsDisplayed()
+            compose.onNodeWithText("Fixture tab page").performClick()
+            waitLoaded(browser) { it == tabUrl }
+            compose.onNodeWithText("Saved links").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Remove saved link Fixture tab page").performClick()
+            compose.waitUntil(10_000) { runBlocking { repository.list().isEmpty() } }
+            compose.onNodeWithText("Done").performClick()
+        } finally { file.delete() }
+    }
+
     @Test fun searchLinksHistorySourceSwitchingAndRelease() {
         val memory = WebTabMemory()
         var browser by mutableStateOf(controller(memory))
@@ -44,7 +77,7 @@ class WebTabBrowserTest {
         compose.setContent { OpenTabsTheme {
             if (visible) WebTabScreen(request, memory, full, awake, { visible = false }, { request = request.switchTo(it) },
                 { full = it }, { awake = it }, {}, browser)
-            else Text("Native tabs resumed")
+            else Text("Search resumed")
         } }
         waitLoaded(browser) { it == request.url }
         compose.runOnIdle {
@@ -69,8 +102,8 @@ class WebTabBrowserTest {
         compose.onNodeWithContentDescription("Browse Ultimate Guitar").performClick()
         waitLoaded(browser) { it == WebTabSource.ULTIMATE_GUITAR.searchUrl("Nutshell", "Alice in Chains") }
         compose.runOnIdle { assertEquals("Alice in Chains", request.artist) }
-        compose.onNodeWithText("Native tabs").performClick()
-        compose.onNodeWithText("Native tabs resumed").assertIsDisplayed()
+        compose.onNodeWithText("Search").performClick()
+        compose.onNodeWithText("Search resumed").assertIsDisplayed()
         compose.runOnIdle {
             assertNull(browser.webView)
             assertNotNull(memory.history)
@@ -79,6 +112,25 @@ class WebTabBrowserTest {
         }
         waitLoaded(browser) { it.contains("ultimate-guitar.com") }
         compose.runOnIdle { assertTrue(browser.state.value.canBack) }
+    }
+
+    @Test fun spaNavigationCancelsOfferedAndPendingDownloadsButAnchorsDoNot() {
+        val memory = WebTabMemory()
+        val browser = controller(memory)
+        val request = WebTabRequest(WebTabSource.SONGSTERR, "Study", "", 1)
+        compose.setContent { OpenTabsTheme { WebTabScreen(request, memory, false, false, {}, {}, {}, {}, {}, browser) } }
+        waitLoaded(browser)
+        compose.runOnIdle {
+            val view = browser.webView!!
+            val original = browser.state.value.url
+            browser.downloads.offer(original, "https://www.songsterr.com/file.pdf", "Test", "attachment; filename=Study.pdf", "application/pdf", 128)
+            assertEquals(ProviderDownloadUiState.Stage.OFFER, browser.downloads.state.value.stage)
+            view.webViewClient.doUpdateVisitedHistory(view, "$original#measure-2", false)
+            assertEquals(ProviderDownloadUiState.Stage.OFFER, browser.downloads.state.value.stage)
+            browser.downloads.chooseDestination()
+            view.webViewClient.doUpdateVisitedHistory(view, "https://www.songsterr.com/a/wsa/another-tab-s2", false)
+            assertEquals(ProviderDownloadUiState.Stage.IDLE, browser.downloads.state.value.stage)
+        }
     }
 
     @Test fun accessRestrictionKeepsTheDeliveredPageAndShowsExternalFallback() {

@@ -2,6 +2,7 @@ package org.opentabs.core
 
 import java.io.File
 import java.io.InputStream
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.UUID
@@ -29,10 +30,25 @@ class LibraryRepository(private val directory: File) {
                 val stored = json.decodeFromString<LibraryState>(index.readText())
                 check(stored.version == 1) { "This library needs a newer version of OpenTabs." }
                 mutableState.value = stored.copy(settings = stored.settings.sanitized())
+                // Upgrade only unchanged bundled bodies. Legacy imports never acquire guessed timing.
+                stored.songs.filter { !it.imported }.forEach { song ->
+                    try {
+                        val number = song.id.removePrefix("example-").toIntOrNull()
+                        if (number != null && song.id == "example-$number" && !playback(song.id).exists() &&
+                            Examples.exercises.getOrNull(number)?.second == body(song.id).takeIf { it.exists() }?.readText()) {
+                            ExampleScores.forIndex(number)?.let { atomicWrite(playback(song.id), json.encodeToString(it)) }
+                        }
+                    } catch (_: IOException) {
+                        // Optional audio migration must not block an existing text library on full/read-only storage.
+                    } catch (_: SecurityException) {
+                        // Keep existing metadata and text available when this optional write is not permitted.
+                    }
+                }
             } else {
                 val songs = Examples.exercises.mapIndexed { number, (title, content) ->
                     val song = Song("example-$number", title, "OpenTabs exercises", imported = false)
                     atomicWrite(body(song.id), content)
+                    ExampleScores.forIndex(number)?.let { atomicWrite(playback(song.id), json.encodeToString(it)) }
                     song
                 }
                 save(LibraryState(songs = songs, currentSongId = songs.first().id))
@@ -51,6 +67,34 @@ class LibraryRepository(private val directory: File) {
         }
     }
 
+    /** GP7 text remains importable even when its authored timing is not supported. */
+    suspend fun importGuitarPro(score: GuitarProScore, trackId: String): Song = withContext(Dispatchers.IO) {
+        val track = score.tracks.firstOrNull { it.id == trackId } ?: error("Unknown arrangement.")
+        val document = score.document(trackId)
+        val practice = runCatching { score.practiceScore(trackId) }
+        mutex.withLock {
+            val song = Song(UUID.randomUUID().toString(), "${score.title} · ${track.name}".take(160), score.artist,
+                tuning = tuningLabel(track.tuning), album = "GP7 written-order practice",
+                playbackUnavailableReason = practice.exceptionOrNull()?.message?.take(400))
+            atomicWrite(body(song.id), document.lines.joinToString("\n"))
+            practice.getOrNull()?.let { atomicWrite(playback(song.id), json.encodeToString(it)) }
+            save(state.value.copy(songs = state.value.songs + song))
+            song
+        }
+    }
+
+    /** A missing sidecar means no authored timing. Corrupt sidecars never prevent opening the text. */
+    suspend fun practiceScore(id: String): PracticeScore? = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            require(state.value.songs.any { it.id == id }) { "This tab is no longer in the library." }
+            val file = playback(id)
+            if (!file.exists()) return@withLock null
+            require(file.length() <= 8 * 1024 * 1024) { "Saved playback score is too large." }
+            val bytes = file.inputStream().use { readBounded(it, 8 * 1024 * 1024) }
+            json.decodeFromString<PracticeScore>(bytes.toString(Charsets.UTF_8))
+        }
+    }
+
     suspend fun saveAuthorized(tab: AuthorizedTab): Song = withContext(Dispatchers.IO) {
         val result = tab.result
         require(result.rights.display && result.rights.save && result.rights.cache) {
@@ -62,10 +106,24 @@ class LibraryRepository(private val directory: File) {
             val provenance = Provenance(result.source, result.sourceUrl, result.rights.license, result.rights.licenseUrl,
                 result.rights.attribution, "${result.providerId}:${result.id}", result.notice, result.arrangement, result.tags)
             val existing = state.value.songs.firstOrNull { it.provenance?.arrangementId == provenance.arrangementId }
-            if (existing != null) return@withLock existing
+            if (existing != null) {
+                // Re-saving a reviewed arrangement upgrades an older text-only saved copy.
+                if (tab.practiceScore != null && !playback(existing.id).exists() &&
+                    body(existing.id).readText() == document.lines.joinToString("\n")) {
+                    atomicWrite(playback(existing.id), json.encodeToString(tab.practiceScore.copy()))
+                    if (existing.playbackUnavailableReason != null) {
+                        val updated = existing.copy(playbackUnavailableReason = null)
+                        save(state.value.copy(songs = state.value.songs.map { if (it.id == existing.id) updated else it }))
+                        return@withLock updated
+                    }
+                }
+                return@withLock existing
+            }
             val song = Song(java.util.UUID.randomUUID().toString(), result.title, result.artist,
-                tuning = result.tuning.orEmpty(), provenance = provenance)
+                tuning = result.tuning.orEmpty(), provenance = provenance,
+                playbackUnavailableReason = tab.playbackUnavailableReason?.take(400))
             atomicWrite(body(song.id), document.lines.joinToString("\n"))
+            tab.practiceScore?.let { atomicWrite(playback(song.id), json.encodeToString(it.copy())) }
             save(state.value.copy(songs = state.value.songs + song))
             song
         }
@@ -97,6 +155,7 @@ class LibraryRepository(private val directory: File) {
                 currentSongId = state.value.currentSongId?.takeUnless { it == id }))
             // An interrupted cleanup leaves an unreferenced file, never a broken library entry.
             body(id).delete()
+            playback(id).delete()
         }
     }
 
@@ -120,6 +179,11 @@ class LibraryRepository(private val directory: File) {
     private fun body(id: String): File {
         require(id.matches(Regex("[a-zA-Z0-9-]+"))) { "Invalid library identifier." }
         return File(directory, "$id.txt")
+    }
+
+    private fun playback(id: String): File {
+        body(id) // Reuse the same identifier validation for sidecars.
+        return File(directory, "$id.practice.json")
     }
 
     private fun atomicWrite(file: File, text: String) {
